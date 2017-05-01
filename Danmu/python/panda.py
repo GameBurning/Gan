@@ -44,9 +44,10 @@ def notify(title, message):
     elif SYSINFO == 'Linux':
         os.system('notify-send {}'.format(': '.join([title, message])))
     else:   #for mac
-        t = '-title {!r}'.format(title)
-        m = '-message {!r}'.format(message)
-        os.system('terminal-notifier {} -sound default'.format(' '.join([m, t])))
+        #t = '-title {!r}'.format(title)
+        #m = '-message {!r}'.format(message)
+        #os.system('terminal-notifier {} -sound default'.format(' '.join([m, t])))
+        print(message)
 
 
 def getChatInfo(roomid):
@@ -89,6 +90,7 @@ def getChatInfo(roomid):
                     analyseMsg(s, totalLen)
                 except Exception as e:
                     pass
+
 
 def analyseMsg(s, totalLen):
     while totalLen > 0:
