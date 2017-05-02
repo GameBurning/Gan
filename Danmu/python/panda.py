@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-__author__='707<707472783@qq.com>'
 import urllib.request
 import socket
 import json
@@ -8,8 +7,10 @@ import threading
 import os
 import platform
 import re
+import requests
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
+CHATROOMAPI = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
 IGNORE_LEN = 12
 META_LEN = 4
 CHECK_LEN = 4
@@ -26,17 +27,18 @@ INIT_PROPERTIES = 'init.properties'
 MANAGER = '60'
 SP_MANAGER = '120'
 HOSTER = '90'
+OFFLINE_STATUS = '3'
+ONLINE_STATUS = '2'
 
-
-def loadInit():
+def loadInit() -> []:
+    roomid = []
     with open(INIT_PROPERTIES, 'r') as f:
         init = f.read()
         init = init.split('\n')
-        roomid = init[0].split(':')[1]
-        #username = init[1].split(':')[1]
-        #password = init[2].split(':')[1]
-        return roomid
-
+        for line in init:
+            if len(line.split(':')) == 2:
+                roomid.append(line.split(':')[1])
+    return roomid
 
 def notify(title, message):
     if SYSINFO == 'Windows':
@@ -49,6 +51,15 @@ def notify(title, message):
         #os.system('terminal-notifier {} -sound default'.format(' '.join([m, t])))
         print(message)
 
+def getRoomInfo(roomid):
+    r = requests.get('http://room.api.m.panda.tv/index.php?\
+                     method=room.shareapi&roomid=' + str(roomid))
+
+    status = r.json()['data']['roominfo']['status']
+    if status == OFFLINE_STATUS:
+        print("roomid {} is offline".format(roomid))
+    elif status == ONLINE_STATUS:
+        print("roomid {} is online".format(roomid))
 
 def getChatInfo(roomid):
     with urllib.request.urlopen(CHATINFOURL + roomid) as f:
@@ -103,7 +114,6 @@ def analyseMsg(s, totalLen):
         formatMsg(recvMsg)
         totalLen = totalLen - IGNORE_LEN - META_LEN - recvLen
 
-
 def formatMsg(recvMsg):
     try:
         jsonMsg = eval(recvMsg)
@@ -145,25 +155,11 @@ def formatMsg(recvMsg):
         pass
 
 
-def testRoomid(roomid):
-    if not roomid:
-        roomid = input('roomid:')
-        with open(INIT_PROPERTIES, 'r') as f:
-            init = f.readlines()
-            editInit = ''
-            for i in init:
-                if 'roomid' in i:
-                    i = i[:-1] + str(roomid)
-                editInit += i + '\n'
-        with open(INIT_PROPERTIES, 'w') as f:
-            f.write(''.join(editInit))
-    return roomid
-
-
 def main():
     roomid = loadInit()
-    roomid = testRoomid(roomid)
-    getChatInfo(roomid)
+    for r in roomid:
+        getRoomInfo(r)
+    #getChatInfo(roomid[0])
 
 if __name__ == '__main__':
     main()
