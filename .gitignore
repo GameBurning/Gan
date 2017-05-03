@@ -1,3 +1,8 @@
 .DS_Store
+<<<<<<< HEAD
 py3env
 **/*.pyc
+=======
+.ropeproject
+.idea/
+>>>>>>> a257a95edcbf1203e5a7b9772ee92ec142c54867
