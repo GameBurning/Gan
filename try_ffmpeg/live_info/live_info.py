@@ -4,14 +4,10 @@ import requests
 import pprint
 import re
 
+def get_stream_zhanqi(room_id):
+    return []
 
-live_info_store = {
-    "panda.tv" : { "key" : "value" },
-    "zhanqi.tv" : { "key" : "value" }
-}
-
-def get_stream_url(platform, room_id):
-    print("get_stream_by_room")
+def get_stream_panda(room_id):
     stream_urls = []
     plflag = None
     host_rid = None
@@ -31,7 +27,8 @@ def get_stream_url(platform, room_id):
     errno = response["errno"]
     errmsg = response["errmsg"]
     if errno != "0" and errno != 0:
-        raise ValueError("Errno : {}, Errmsg : {}".format(errno, errmsg))
+        print("!!Errno : {}, Errmsg : {}".format(errno, errmsg))
+        return []
     data = response["data"]
 
     plflag = data["videoinfo"]["plflag"].split("_")
@@ -45,7 +42,8 @@ def get_stream_url(platform, room_id):
     errno = response_2["errno"]
     errmsg = response_2["errmsg"]
     if errno != "0" and errno != 0:
-        raise ValueError("Errno : {}, Errmsg : {}".format(errno, errmsg))
+        print("!!Errno : {}, Errmsg : {}".format(errno, errmsg))
+        return []
     data_2 = response_2["data"]
     host_rid = data_2["hostinfo"]["rid"]
     host_name = data_2["hostinfo"]["name"]
@@ -56,18 +54,28 @@ def get_stream_url(platform, room_id):
     room_status = data_2["roominfo"]["status"]
 
     if room_status is not "2":
-        raise ValueError("The live stream is not online! (status:%s)" % room_status)
+        print("!!Errno : The live stream is NOT ONLINE!")
+        return []
 
     # "http://pl-hls3.live.panda.tv/live_panda/7d9bdfd8beca4be796bc4b757503decd_small.m3u8",
     title_search = re.search('.*/live_panda/(.*)(_small)?.m3u8', data_2["videoinfo"]["address"], re.IGNORECASE)
 
     if title_search:
         video_id = title_search.group(1)
-    print("videoID: " + str(video_id))
-
-    real_url = "http://pl{}.live.panda.tv/live_panda/{}.flv".format(plflag[1], video_id)
-    stream_urls.append(real_url)
-
-    pp.pprint(stream_urls)
+        real_url = "http://pl{}.live.panda.tv/live_panda/{}.flv".format(plflag[1], video_id)
+        stream_urls.append(real_url)
+        pp.pprint(stream_urls)
+    else:
+        print("cannot extract video id from url: " + str(data_2["videoinfo"]["address"]))
 
     return stream_urls
+
+live_info_store = {
+    "panda" : { "stream_url_func" : get_stream_panda },
+    "zhanqi" : { "stream_url_func" : get_stream_zhanqi }
+}
+
+
+def get_stream_url(platform, room_id):
+    print("get_stream_url")
+    return live_info_store[platform]['stream_url_func'](room_id)
