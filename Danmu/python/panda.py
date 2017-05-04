@@ -42,7 +42,6 @@ class DanmuThread(threading.Thread):
         self.name = name
     def run(self):
         print("===========DanmuThread on {} starts===========".format(self.name))
-
         filename = str(self.roomID) + "_" + self.name + ".csv"
         logdir = os.path.expanduser(LOGFILEDIR)
         # getChatInfo(self.roomID)
@@ -51,17 +50,20 @@ class DanmuThread(threading.Thread):
         else:
             logfile = open(logdir + filename, 'w')
             logfile.write("time, danmu_number, audition_number\n")
-        while room_is_online(self.roomID):
-
-            start_time = time.time()
+        while ONLINE_FLAGS[self.roomID]:
+            print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
+            start_time = int(time.time())
             DANMU_DICT[self.roomID] = 0
-            time.sleep(30)
-            logfile.write("{},{},{}\n".format(time.ctime(start_time), DANMU_DICT[self.roomID], \
+            print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
+            time.sleep(5)
+            print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
+            logfile.write("{},{},{}\n".format(start_time, DANMU_DICT[self.roomID], \
                                                   AUDITION_DICT[self.roomID]))
-            print("{},{},{}\n".format(time.ctime(start_time), DANMU_DICT[self.roomID], \
+            print("{} time 4 is :{}".format(self.name, time.ctime(time.time())))
+            print("{} logfile:{},{},{}".format(self.name, start_time, DANMU_DICT[self.roomID], \
                                           AUDITION_DICT[self.roomID]))
 
-        ONLINE_FLAGS[self.roomID] = False
+        #ONLINE_FLAGS[self.roomID] = False
         logfile.close()
         print("===========Thread on {} ends===========".format(self.name))
 
@@ -88,8 +90,14 @@ def update_audition(roomid, audition_num):
     AUDITION_DICT[roomid] = audition_num
 
 def room_is_online(room_id):
-    r = requests.get('http://room.api.m.panda.tv/index.php?\
-                     method=room.shareapi&roomid=' + str(room_id))
+    # print("room:{} before requests time is:{}".format(room_id, time.ctime(time.time())))
+    try:
+        r = requests.get('http://room.api.m.panda.tv/index.php?\
+                     method=room.shareapi&roomid=' + str(room_id), timeout=5)
+    except:
+        print("timeout")
+        return False
+    # print("room:{} after requests time is:{}".format(room_id, time.ctime(time.time())))
     status = r.json()['data']['roominfo']['status']
     # TODO: Understand what does status 1 means
     if status == OFFLINE_STATUS:
@@ -100,8 +108,8 @@ def room_is_online(room_id):
 
 def getChatInfo(roomid, name):
     print("===========getChatInfo on {} starts===========".format(name))
-    thread = DanmuThread(roomid, name)
-    thread.start()
+    danmuThread = DanmuThread(roomid, name)
+    danmuThread.start()
     with urllib.request.urlopen(CHATINFOURL + roomid) as f:
         data = f.read().decode('utf-8')
         chatInfo = json.loads(data)
@@ -127,12 +135,13 @@ def getChatInfo(roomid, name):
             s.recv(recvLen)
         def keepalive():
             while ONLINE_FLAGS[roomid]:
-                #print('================keepalive=================')
+                # print('================keepalive=================')
                 s.send(KEEPALIVE)
                 time.sleep(150)
         threading.Thread(target=keepalive).start()
 
         while ONLINE_FLAGS[roomid]:
+            # print('================receive messages=================')
             recvMsg = s.recv(CHECK_LEN)
             if recvMsg == RECVMSG:
                 recvLen = int.from_bytes(s.recv(2), 'big')
@@ -206,6 +215,9 @@ def main():
             if not ONLINE_FLAGS[id] and room_is_online(id):
                 ONLINE_FLAGS[id] = True
                 threading.Thread(target=getChatInfo, args=(id, name)).start()
+            elif ONLINE_FLAGS[id] and not room_is_online(id):
+                ONLINE_FLAGS[id] = False
+        time.sleep(30)
 
 
 if __name__ == '__main__':
