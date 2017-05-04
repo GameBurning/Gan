@@ -7,46 +7,64 @@ from flask import Flask
 from flask import jsonify
 from flask import request
 import time
+import os
+import signal
+
+if str(sys.version_info[0]) != "3":
+    raise "Please Use Python _3_ !!!"
 
 app = Flask(__name__)
 
 room_platform_to_record_id = {}
-threads = []
 record_info = {}
 lock = threading.Lock()
 
 def start_download(url, file_prefix , record_id):
-    command = "ffmpeg -i " + url +" -c copy -f segment -segment_time 20 -reset_timestamps 1 "+ file_prefix +"_%d.flv"
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if not os.path.exists(record_id):
+        os.makedirs(record_id)
+    command = "ffmpeg -i " + url +" -c copy -f segment -segment_time 8 -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
+    lock.acquire()
+    print("++++++++++++++++++acquired 9")
+    record_info[record_id]["ffmpeg_process_handler"] = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process = record_info[record_id]["ffmpeg_process_handler"]
+    lock.release()
+    print("------------------released 9")
 
     # Poll process for new output until finished
     while True:
         nextline = process.stdout.readline().decode("utf-8")
-
-        if nextline == '' and process.poll() is not None:
-            sys.stdout.write("no more lines!!!!!!!!!!!!!!")
-            sys.stdout.flush()
-            break
-        if "Press [q] to stop" in nextline:
-            print("starting recording......")
-            lock.acquire()
-            try:
-                print("lock acquired......")
-                record_info[record_id]["start_time"] = str(int(round(time.time() * 1000)))
-                print("Start count TimeStamp : " + str(record_info[record_id]["start_time"]))
-            finally:
-                lock.release()
-
         sys.stdout.write(nextline)
         sys.stdout.flush()
 
-    output = process.communicate()[0]
-    exitCode = process.returncode
+        if nextline == '' and process.poll() is not None:
+            lock.acquire()
+            print("++++++++++++++++++acquired 6")
+            record_info[record_id]["status"] = "ready"
+            record_info[record_id]["ffmpeg_process_handler"] = None
+            lock.release()
+            print("------------------released 6")
+            break
 
-    if (exitCode == 0):
-        return output
-    else:
-        return None
+        if "error" in nextline:
+            print("error in getting streaming data...")
+            lock.acquire()
+            print("++++++++++++++++++acquired 1")
+            record_info[record_id]["status"] = "error"
+            record_info[record_id]["ffmpeg_process_handler"] = None
+            lock.release()
+            print("------------------released 1")
+            break
+
+        if "Press [q] to stop" in nextline:
+            print("starting recording......")
+            lock.acquire()
+            print("++++++++++++++++++acquired 2")
+            record_info[record_id]["status"] = "recording"
+            record_info[record_id]["start_time"] = str(int(time.time()))
+            lock.release()
+            print("------------------released 2")
+
+    return None
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -71,31 +89,55 @@ def start():
         print("cannot get streaming url")
         return "cannot get streaming url", 204
 
-    if str(room_id) + str(platform) in room_platform_to_record_id:
+    tmp_name = str(room_id) + str(platform)
+    if  tmp_name in room_platform_to_record_id and record_info[room_platform_to_record_id[tmp_name]]["status"] == "recording":
         print("Already started")
         return "Already started", 204
 
-    record_id = str(platform) + "_" + str(room_id) + "_" + str(int(round(time.time() * 1000)))
+    record_id = str(platform) + "_" + str(room_id) + "_" + str(int(time.time()))
     room_platform_to_record_id[str(room_id) + str(platform)] = record_id
-    record_info[record_id] = {"start_time" : ""}
+    # status: ready, error, recording
+    record_info[record_id] = {"start_time" : "", "status" : "ready", "thread": None, "ffmpeg_process_handler" : None}
     print("Assigned record_id : " + record_id)
 
-    t = threading.Thread(target=start_download, args=[urls[0], record_id, record_id])
-    threads.append(t)
+    res = create_recording_thread(urls, "", record_id)
+
+    if res != 0:
+        return "Can not get streaming data", 204
+
+    return jsonify({'record_id' : record_id, 'start_time' : record_info[record_id]["start_time"] })
+
+def create_recording_thread(urls, file_prefix, record_id):
+    if len(urls) == 0:
+        return 1
+    t = threading.Thread(target=start_download, args=[urls[0], file_prefix, record_id])
     record_info[record_id]["thread"] = t
     t.start()
 
     while(True):
         lock.acquire()
-        try:
-            if record_info[record_id]["start_time"] != "":
-                print('record_info[record_id]["start_time"] : ' + str(record_info[record_id]["start_time"]))
-                break;
-        finally:
+        print("++++++++++++++++++acquired 3")
+        status = record_info[record_id]["status"]
+        start_time = record_info[record_id]["start_time"]
+        lock.release()
+        print("------------------released 3")
+
+        if status == "error":
+            print("Streaming download fail, try next url...")
+            lock.acquire()
+            print("++++++++++++++++++acquired 4")
+            urls.pop(0)
+            record_info[record_id]["status"] = "ready"
+            record_info[record_id]["thread"] = None
             lock.release()
+            print("------------------released 4")
+            return create_recording_thread(urls, file_prefix, record_id)
+        elif status == "recording":
+            print('record_info[record_id]["start_time"] : ' + str(start_time))
+            break;
         time.sleep(1)
 
-    return jsonify({'record_id' : '', 'start_time' : record_info[record_id]["start_time"] })
+    return 0
 
 @app.route('/stop', methods=['POST'])
 def stop():
@@ -104,8 +146,30 @@ def stop():
     print("record_id: " + str(record_id))
 
     if record_id == -1:
-        return "", 204
-    return jsonify({'record_id' : '', 'start_time' : '' })
+        return "need record_id", 204
+
+    lock.acquire()
+    print("++++++++++++++++++acquired 7")
+    if record_info[record_id]["status"] != "recording":
+        lock.release()
+        print("------------------released 7")
+        return "Already stopped", 204
+
+    # record_info[record_id]["ffmpeg_process_handler"].kill()
+    os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
+    for i in range(6):
+        time.sleep(0.5)
+        if record_info[record_id]["ffmpeg_process_handler"].poll() is not None:
+            record_info[record_id]["status"] = "ready"
+            record_info[record_id]["ffmpeg_process_handler"] = None
+            sys.stdout.flush()
+            lock.release()
+            print("------------------released 8")
+            return "stopped"
+    lock.release()
+    print("------------------released 8")
+    return "stop failed", 204
+
 
 @app.route('/delete', methods=['POST'])
 def delete():
@@ -114,11 +178,17 @@ def delete():
     start_block_id = request.form.get('start_block_id', -1)
     end_block_id = request.form.get('end_block_id', -1)
     print("record_id: " + str(record_id))
-    print("start_block_id: " + str(start_block_id))
-    print("end_block_id: " + str(end_block_id))
+    print("start_block_id: " + start_block_id)
+    print("end_block_id: " + end_block_id)
 
     if record_id == -1:
         return "", 204
+
+    for i in range(int(start_block_id), int(end_block_id)+1):
+        try:
+            os.remove(record_id + "/" + str(i) + ".flv")
+        except OSError:
+            pass
     return jsonify({'record_id' : '', 'start_time' : '' })
 
 @app.route('/process', methods=['POST'])
@@ -146,8 +216,6 @@ urls = ["http://220.243.224.53/pl3.live.panda.tv/live_panda/9b2f7ed9e4c50e2c879d
  "http://pl12.live.panda.tv/live_panda/cb8887f5a48a943a6d1312c0cf10fd5d.flv",
  "http://pl12.live.panda.tv/live_panda/2c0b221f5f544d4c009d7167043b9e04.flv"]
 
-threads = []
-
 # def _test():
 #     print(live_info_store)
     # get_stream_url(room_id="1002829", platform = "panda")
@@ -160,6 +228,8 @@ def main():
     # for t in threads:
     #     t.join()
     # _test()
+    if sys.version_info[0] < 3:
+        raise "Must be using Python 3"
     app.run()
 
 if __name__ == "__main__":
