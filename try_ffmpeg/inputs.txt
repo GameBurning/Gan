@@ -1,3 +1,0 @@
-file test_flv_0.flv
-file test_flv_1.flv
-file test_flv_2.flv

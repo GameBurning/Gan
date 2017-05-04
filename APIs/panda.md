@@ -1,29 +1,27 @@
 #Panda TV
 
-###房间信息API：
+##房间信息API：
 ```
 Methond: GET
 ```
 ```
-URL:http://room.api.m.panda.tv/index.php?
+URL:   http://room.api.m.panda.tv/index.php
 ```
 ```
 params(URL encoded):
+
 method = "room.shareapi"
-roomid = {roomId}
-_ = {jsTimeStamp}
+roomid = [roomId]
+_ = [jsTimeStamp]
 
 ```
 ```
-Response: JSON
-
-```
-
-```
+Response:JSON
 Example:
-REQUEST: 
-http://room.api.m.panda.tv/index.php?
+
+REQUEST:  http://room.api.m.panda.tv/index.php?
 method=room.shareapi&roomid=27337&_=1478754719396
+
 RESPONSE:
 {
   "errno": "0",
@@ -61,11 +59,36 @@ RESPONSE:
 }
 ```
 
-###视频地址：
+##视频地址：
+在房间信息API的response里videoinfo的address就是vlc可处理的m3u8格式的playlist文件。但是我们可以用同样的文件名去访问这个地址的flv格式的文件，flv格式用ffmpeg保存更好。
+
+比如在房间信息API中获取的地址是这样的：
+```json
+ {"videoinfo": { "address": "http://pl-hls3.live.panda.tv/live_panda/a60c08c3c87fe77d3541f2b91fe0b3d7_small.m3u8","watermark": "4"}}
 ```
-在房间信息API的response里videoinfo的address就是vlc可处理的playlist文件
+我们把:a60c08c3c87fe77d3541f2b91fe0b3d7提出来放进这个flv的地址里：
 ```
+http://220.243.194.31/pl3.live.panda.tv/live_panda/a60c08c3c87fe77d3541f2b91fe0b3d7.flv
 ```
-Example:
-http://pl-hls8.live.panda.tv/live_panda/4b0904bbdb295b039405d8a7879ae43b_small.m3u8
+或者这里：
 ```
+pl12.live.panda.tv/live_panda/a60c08c3c87fe77d3541f2b91fe0b3d7.flv
+```
+
+
+可用ffmpeg指令来下载以上flv地址的视频。
+
+可用的CDN地址有：
+
+- (always) **pl12.live.panda.tv/live_panda/xxx.flv**
+- (optional) 220.243.194.31
+- (optional) 220.243.194.32
+- (optional) 203.131.253.35
+- (optional) 203.131.253.34
+- (optional) 220.243.225.50
+- (optional) 220.243.194.30
+- (optional) 183.232.7.190
+- (optional) 107.155.46.141 
+
+
+pl12.live.panda.tv/live_panda/c4e599ce9e9a3efa1c51024a1b1b86f7.flv
