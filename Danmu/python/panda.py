@@ -34,6 +34,7 @@ ONLINE_STATUS = '2'
 DANMU_DICT = {}
 AUDITION_DICT = {}
 ONLINE_FLAGS = {}
+ANALYSIS_DURATION = 10
 
 class DanmuThread(threading.Thread):
     def __init__(self, roomID, name):
@@ -55,10 +56,11 @@ class DanmuThread(threading.Thread):
             start_time = int(time.time())
             DANMU_DICT[self.roomID] = 0
             print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
-            time.sleep(5)
+            time.sleep(ANALYSIS_DURATION)
             print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
             logfile.write("{},{},{}\n".format(start_time, DANMU_DICT[self.roomID], \
                                                   AUDITION_DICT[self.roomID]))
+            logfile.flush()
             print("{} time 4 is :{}".format(self.name, time.ctime(time.time())))
             print("{} logfile:{},{},{}".format(self.name, start_time, DANMU_DICT[self.roomID], \
                                           AUDITION_DICT[self.roomID]))
