@@ -52,15 +52,15 @@ class DanmuThread(threading.Thread):
             logfile.write("time, danmu_number, audition_number\n")
         while ONLINE_FLAGS[self.roomID]:
             print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
-            start_time = time.time()
+            start_time = int(time.time())
             DANMU_DICT[self.roomID] = 0
             print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
             time.sleep(5)
             print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
-            logfile.write("{},{},{}\n".format(time.ctime(start_time), DANMU_DICT[self.roomID], \
+            logfile.write("{},{},{}\n".format(start_time, DANMU_DICT[self.roomID], \
                                                   AUDITION_DICT[self.roomID]))
             print("{} time 4 is :{}".format(self.name, time.ctime(time.time())))
-            print("{} logfile:{},{},{}".format(self.name, time.ctime(start_time), DANMU_DICT[self.roomID], \
+            print("{} logfile:{},{},{}".format(self.name, start_time, DANMU_DICT[self.roomID], \
                                           AUDITION_DICT[self.roomID]))
 
         #ONLINE_FLAGS[self.roomID] = False
