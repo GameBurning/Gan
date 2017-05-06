@@ -22,3 +22,7 @@ ffmpeg -f concat -i inputs.txt -vcodec copy -acodec copy Total.flv
 
 
 ffmpeg -i http://pl12.live.panda.tv/live_panda/a60c08c3c87fe77d3541f2b91fe0b3d7.flv -c copy -f segment -segment_time 20 -reset_timestamps 1 test_flv_%d.flv
+
+
+// Down sample
+ffmpeg -i http://pl12.live.panda.tv/live_panda/09c5ae6fcf56d1826bc0e1ab37421bab.flv -sws_flags lanczos+accurate_rnd -vf "scale=320:240" -c:v libx264 -crf 20 -preset veryslow -f segment -segment_time 20 -reset_timestamps 1 test_flv_%d.flv
