@@ -10,6 +10,7 @@ import time
 import os
 import json
 import signal
+import copy
 
 if str(sys.version_info[0]) != "3":
     raise "Please Use Python _3_ !!!"
@@ -19,6 +20,115 @@ app = Flask(__name__)
 room_platform_to_record_id = {}
 record_info = {}
 lock = threading.Lock()
+
+def split_video(source_file, cut_offset, dst1, dst2):
+    print("spliting video")
+
+    command1 = "ffmpeg -y -i {} -vcodec copy -acodec copy -t {} {}".format(source_file, cut_offset, dst1)
+    command2 = "ffmpeg -y -ss {} -i {} -vcodec copy -acodec copy {}".format(cut_offset, source_file, dst2)
+
+    process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process1.wait()
+    process2.wait()
+
+    return 0
+
+# offset    -1      keep whole video
+def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
+    print("..........starting process")
+    if not os.path.exists(record_id):
+        return -1, "no record exists"
+    if not os.path.exists("process_results"):
+        os.makedirs("process_results")
+    lock.acquire()
+    record_info[record_id]["processing_tasks"][name] = {"status" : "running"}
+    lock.release()
+
+    list_file_name = record_id + "/"+ name + ".txt"
+    list_file = open(list_file_name, "w")
+
+    start_file_name = record_id + "/"+ str(start_block_id) + ".flv"
+    end_file_name = record_id + "/"+ str(end_block_id) + ".flv"
+
+    if start_block_offset != -1:
+        split_video( \
+            start_file_name, \
+            start_block_offset, \
+            record_id+"/"+ str(start_block_id) + "_cut_1.flv", \
+            record_id+"/"+ str(start_block_id)+"_cut_2.flv" \
+        )
+        list_file.write("file " + str(start_block_id) + "_cut_2.flv\n")
+        print("file " + str(start_block_id) + "_cut_2.flv")
+    else:
+        list_file.write("file " + str(start_block_id) + ".flv\n")
+
+    start_block_id = int(start_block_id)
+    end_block_id = int(end_block_id)
+
+    if end_block_id > start_block_id + 1:
+        for i in range(start_block_id + 1, end_block_id):
+            list_file.write("file " + str(i) + ".flv\n")
+            print("file " + str(i) + ".flv")
+
+    if end_block_offset != -1:
+        split_video( \
+            end_file_name, \
+            end_block_offset, \
+            record_id+"/"+ str(end_block_id)+"_cut_1.flv", \
+            record_id+"/"+ str(end_block_id)+"_cut_2.flv" \
+        )
+        list_file.write("file " + str(end_block_id) + "_cut_1.flv\n")
+        print("file " + str(end_block_id) + "_cut_1.flv")
+    else:
+        list_file.write("file " + str(end_block_id) + ".flv\n")
+
+    list_file.close()
+    output_file_name = "process_results/" + name + ".flv"
+
+    command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
+
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    # Poll process for new output until finished
+    while True:
+        nextline = process.stdout.readline().decode("utf-8")
+        sys.stdout.write(nextline)
+        sys.stdout.flush()
+
+        if nextline == '' and process.poll() is not None:
+            print("..........concatenate finished")
+            try:
+                os.remove(list_file_name)
+            except OSError:
+                pass
+            lock.acquire()
+            record_info[record_id]["processing_tasks"][name] = {"status" : "finished"}
+            lock.release()
+            break
+
+        if "Press [q] to stop" in nextline:
+            print("..........starting concatenating video")
+
+        if "Impossible" in nextline:
+            print("..........error in concatenating" + nextline)
+            try:
+                os.remove(output_file_name)
+            except OSError:
+                pass
+
+            try:
+                os.remove(list_file_name)
+            except OSError:
+                pass
+
+            lock.acquire()
+            record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : nextline}
+            lock.release()
+            break
+
+    return None
+
 
 def start_download(url, file_prefix , record_id, block_size):
     if not os.path.exists(record_id):
@@ -93,14 +203,20 @@ def start():
         return "cannot get streaming url", 204
 
     tmp_name = str(room_id) + str(platform)
-    if  tmp_name in room_platform_to_record_id and record_info[room_platform_to_record_id[tmp_name]]["status"] == "recording":
+    if tmp_name in room_platform_to_record_id and record_info[room_platform_to_record_id[tmp_name]]["status"] == "recording":
         print("Already started")
         return "Already started", 204
 
     record_id = str(platform) + "_" + str(room_id) + "_" + str(int(time.time()))
     room_platform_to_record_id[str(room_id) + str(platform)] = record_id
     # status: ready, error, recording
-    record_info[record_id] = {"start_time" : "", "status" : "ready", "thread": None, "ffmpeg_process_handler" : None}
+    record_info[record_id] = { \
+        "start_time" : "", \
+        "status" : "ready", \
+        "thread": None, \
+        "ffmpeg_process_handler" : None, \
+        "processing_tasks" : {"status" : "", "info" : ""} \
+    }
     print("Assigned record_id : " + record_id)
 
     res = create_recording_thread(urls, "", record_id, block_size)
@@ -128,6 +244,7 @@ def create_recording_thread(urls, file_prefix, record_id, block_size):
             lock.acquire()
             urls.pop(0)
             record_info[record_id]["status"] = "ready"
+            record_info[record_id]["block_size"] = block_size
             record_info[record_id]["thread"] = None
             lock.release()
             return create_recording_thread(urls, file_prefix, record_id)
@@ -148,7 +265,7 @@ def stop():
         return "need record_id", 204
 
     lock.acquire()
-    if record_info[record_id]["status"] != "recording":
+    if (record_id not in record_info) or record_info[record_id]["status"] != "recording":
         lock.release()
         return "Already stopped", 204
 
@@ -198,15 +315,51 @@ def process():
     start_block_offset = request.form.get('start_block_offset', 0)
     end_block_id = request.form.get('end_block_id', -1)
     end_block_offset = request.form.get('end_block_offset', -1)
+    name = request.form.get('name', str(record_id) +" - "+ str(start_block_id)+" : " + str(start_block_offset)+" - " + str(end_block_id) +" : " + str(end_block_offset) )
+
+    if isinstance(start_block_offset, str):
+        start_block_offset = int(start_block_offset)
+    if isinstance(end_block_offset, str):
+        end_block_offset = int(end_block_offset)
+
     print("record_id:" + str(record_id))
     print("start_block_id: " + str(start_block_id))
     print("start_block_offset: " + str(start_block_offset))
     print("end_block_id: " + str(end_block_id))
     print("end_block_offset: " + str(end_block_offset))
+    print("name: " + name)
 
     if record_id == -1:
         return "", 204
-    return jsonify({'record_id' : '', 'start_time' : '' })
+
+    # start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset)
+    lock.acquire()
+    if record_id not in record_info:
+        record_info[record_id] = { \
+            "start_time" : "", \
+            "status" : "ready", \
+            "thread": None, \
+            "ffmpeg_process_handler" : None, \
+            "processing_tasks" : {"status" : "", "info" : ""} \
+        }
+    lock.release()
+
+    t = threading.Thread(target=start_process, args=[record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset])
+    t.start()
+
+    for i in range(10):
+        time.sleep(1)
+
+        lock.acquire()
+        process_task = copy.deepcopy( record_info[record_id]["processing_tasks"][name] )
+        lock.release()
+
+        if process_task["status"] == "error":
+            return "processing error"+process_task["info"], 204
+        elif process_task["status"] == "finished":
+            return "finished", 200
+
+    return "time out", 204
 
 prefixs=["v1", "v2", "v3", "v4"]
 
@@ -227,9 +380,17 @@ def main():
     # for t in threads:
     #     t.join()
     # _test()
-    if sys.version_info[0] < 3:
-        raise "Must be using Python 3"
+
+    # if sys.version_info[0] < 3:
+    #     raise "Must be using Python 3"
     app.run()
+
+
+    # split_video("panda_66666_1494180289", "10", 5, "10_1", "10_2")
+
+    # def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset)
+    # t = threading.Thread(target=start_process, args=["panda_642207_1494191313", "concatenated", 1, -1, 4, -1])
+    # t.start()
 
 if __name__ == "__main__":
     main()

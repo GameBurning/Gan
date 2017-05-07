@@ -1,7 +1,7 @@
 # Gan
-##ffmpeg API:
+## ffmpeg API:
 
-###start:
+### start:
 
 Endpoint [POST]: 
 
@@ -21,7 +21,7 @@ Return :
 	* ```Record ID```
 * code 204 - Fail 
 
-###stop:
+### stop:
 
 Endpoint [POST]: 
 
@@ -36,7 +36,7 @@ Return :
 * Code 200 - success
 * Code 204 - Fail
 
-###delete:
+### delete:
 
 Endpoint [POST]: 
 
@@ -52,4 +52,26 @@ Return :
 
 * Code 200 - success
 * Code 204 - Fail
-	
+
+
+### process:
+
+Endpoint [POST]: 
+
+* http://127.0.0.1:5000/process
+
+Params[Form-data] :  
+
+* ```record_id ``` 
+* ```name ``` : the output file name you want it be
+* ```start_block_id```
+* ```start_block_offset ``` : in seconds, -1 means keep whole start block
+* ```end_block_id ```
+* ```end_block_offset ``` : in seconds, -1 means keep whole start block
+
+Return :
+
+ 
+* code 200 - Success:
+	* ```finished```
+* code 204 - Fail:	Some error information
