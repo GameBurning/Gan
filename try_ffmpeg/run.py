@@ -230,7 +230,7 @@ def main():
     # _test()
     if sys.version_info[0] < 3:
         raise "Must be using Python 3"
-    app.run()
+    app.run(port=5001)
 
 if __name__ == "__main__":
     main()
