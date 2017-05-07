@@ -38,55 +38,64 @@ def split_video(source_file, cut_offset, dst1, dst2):
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     print("..........starting process")
     if not os.path.exists(record_id):
+        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "record with id :" + record_id +" not exists"}
         return -1, "no record exists"
     if not os.path.exists("process_results"):
         os.makedirs("process_results")
-    lock.acquire()
-    record_info[record_id]["processing_tasks"][name] = {"status" : "running"}
-    lock.release()
 
-    list_file_name = record_id + "/"+ name + ".txt"
-    list_file = open(list_file_name, "w")
-
+    output_file_name = "process_results/" + name + ".flv"
     start_file_name = record_id + "/"+ str(start_block_id) + ".flv"
     end_file_name = record_id + "/"+ str(end_block_id) + ".flv"
+    list_file_name = record_id + "/"+ name + ".txt"
 
-    if start_block_offset != -1:
-        split_video( \
-            start_file_name, \
-            start_block_offset, \
-            record_id+"/"+ str(start_block_id) + "_cut_1.flv", \
-            record_id+"/"+ str(start_block_id)+"_cut_2.flv" \
-        )
-        list_file.write("file " + str(start_block_id) + "_cut_2.flv\n")
-        print("file " + str(start_block_id) + "_cut_2.flv")
+    lock.acquire()
+    record_info[record_id]["processing_tasks"][name]["status"] = "running"
+    lock.release()
+
+    if start_block_id > end_block_id:
+        lock.acquire()
+        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "start_block_id > end_block_id"}
+        lock.release()
+        return -1, "start_block_id > end_block_id"
+    elif start_block_id == end_block_id:
+        command = "ffmpeg -y -i {} -ss {} -to {} -vcodec copy -acodec copy {}".format(start_file_name, start_block_offset, end_block_offset, output_file_name)
     else:
-        list_file.write("file " + str(start_block_id) + ".flv\n")
+        list_file = open(list_file_name, "w")
 
-    start_block_id = int(start_block_id)
-    end_block_id = int(end_block_id)
+        if start_block_offset != -1:
+            split_video( \
+                start_file_name, \
+                start_block_offset, \
+                record_id+"/"+ str(start_block_id) + "_cut_1.flv", \
+                record_id+"/"+ str(start_block_id)+"_cut_2.flv" \
+            )
+            list_file.write("file " + str(start_block_id) + "_cut_2.flv\n")
+            print("file " + str(start_block_id) + "_cut_2.flv")
+        else:
+            list_file.write("file " + str(start_block_id) + ".flv\n")
 
-    if end_block_id > start_block_id + 1:
-        for i in range(start_block_id + 1, end_block_id):
-            list_file.write("file " + str(i) + ".flv\n")
-            print("file " + str(i) + ".flv")
+        start_block_id = int(start_block_id)
+        end_block_id = int(end_block_id)
 
-    if end_block_offset != -1:
-        split_video( \
-            end_file_name, \
-            end_block_offset, \
-            record_id+"/"+ str(end_block_id)+"_cut_1.flv", \
-            record_id+"/"+ str(end_block_id)+"_cut_2.flv" \
-        )
-        list_file.write("file " + str(end_block_id) + "_cut_1.flv\n")
-        print("file " + str(end_block_id) + "_cut_1.flv")
-    else:
-        list_file.write("file " + str(end_block_id) + ".flv\n")
+        if end_block_id > start_block_id + 1:
+            for i in range(start_block_id + 1, end_block_id):
+                list_file.write("file " + str(i) + ".flv\n")
+                print("file " + str(i) + ".flv")
 
-    list_file.close()
-    output_file_name = "process_results/" + name + ".flv"
+        if end_block_offset != -1:
+            split_video( \
+                end_file_name, \
+                end_block_offset, \
+                record_id+"/"+ str(end_block_id)+"_cut_1.flv", \
+                record_id+"/"+ str(end_block_id)+"_cut_2.flv" \
+            )
+            list_file.write("file " + str(end_block_id) + "_cut_1.flv\n")
+            print("file " + str(end_block_id) + "_cut_1.flv")
+        else:
+            list_file.write("file " + str(end_block_id) + ".flv\n")
 
-    command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
+        list_file.close()
+        command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -133,7 +142,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 def start_download(url, file_prefix , record_id, block_size):
     if not os.path.exists(record_id):
         os.makedirs(record_id)
-    command = "ffmpeg -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
+    command = "ffmpeg -y -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     process = record_info[record_id]["ffmpeg_process_handler"]
@@ -215,7 +224,7 @@ def start():
         "status" : "ready", \
         "thread": None, \
         "ffmpeg_process_handler" : None, \
-        "processing_tasks" : {"status" : "", "info" : ""} \
+        "processing_tasks" : {} \
     }
     print("Assigned record_id : " + record_id)
 
@@ -340,8 +349,10 @@ def process():
             "status" : "ready", \
             "thread": None, \
             "ffmpeg_process_handler" : None, \
-            "processing_tasks" : {"status" : "", "info" : ""} \
+            "processing_tasks" : { name : {"status" : "", "info" : ""} } \
         }
+    else:
+        record_info[record_id]["processing_tasks"][name] = {"status" : "", "info" : ""}
     lock.release()
 
     t = threading.Thread(target=start_process, args=[record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset])
