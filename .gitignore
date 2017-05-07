@@ -4,3 +4,4 @@ py3env
 .ropeproject
 .idea/
 try_ffmpeg/panda_*
+try_ffmpeg/live_info/__pycache__/
