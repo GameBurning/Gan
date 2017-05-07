@@ -34,6 +34,7 @@ ONLINE_STATUS = '2'
 DANMU_DICT = {}
 AUDITION_DICT = {}
 ONLINE_FLAGS = {}
+ANALYSIS_DURATION = 10
 
 class DanmuThread(threading.Thread):
     def __init__(self, roomID, name):
@@ -49,18 +50,21 @@ class DanmuThread(threading.Thread):
             logfile = open(logdir + filename, 'a')
         else:
             logfile = open(logdir + filename, 'w')
-            logfile.write("time, danmu_number, audition_number\n")
+            logfile.write("time, danmu, 666, 学不来, 逗鱼时刻, audition\n")
         while ONLINE_FLAGS[self.roomID]:
             print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
             start_time = int(time.time())
             DANMU_DICT[self.roomID] = 0
             print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
-            time.sleep(5)
+            time.sleep(ANALYSIS_DURATION)
             print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
-            logfile.write("{},{},{}\n".format(start_time, DANMU_DICT[self.roomID], \
+            logfile.write("{},{},{}\n".format(start_time, \
+                                              DANMU_DICT[self.roomID], \
                                                   AUDITION_DICT[self.roomID]))
+            logfile.flush()
             print("{} time 4 is :{}".format(self.name, time.ctime(time.time())))
-            print("{} logfile:{},{},{}".format(self.name, start_time, DANMU_DICT[self.roomID], \
+            print("{} logfile:{},{},{}".format(self.name, start_time, \
+                                               DANMU_DICT[self.roomID], \
                                           AUDITION_DICT[self.roomID]))
 
         #ONLINE_FLAGS[self.roomID] = False
@@ -76,18 +80,20 @@ def loadInit()->[]:
         for line in init:
             if len(line.split(':')) == 2:
                 #[(roomID, name)]
-                roomInfos.append((line.split(':')[1].split('#')[0], line.split(':')[1].split('#')[1]))
+                roomInfos.append((line.split(':')[1].split('#')[0], \
+                                  line.split(':')[1].split('#')[1]))
     for (id, name) in roomInfos:
         ONLINE_FLAGS[id] = False
         AUDITION_DICT[id] = 0
     return roomInfos
 
-
 def add_danmu(roomid):
     DANMU_DICT[roomid] += 1
 
+
 def update_audition(roomid, audition_num):
     AUDITION_DICT[roomid] = audition_num
+
 
 def room_is_online(room_id):
     # print("room:{} before requests time is:{}".format(room_id, time.ctime(time.time())))

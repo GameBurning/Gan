@@ -23,7 +23,7 @@ def get_stream_panda(room_id):
     response = None
     if r.status_code == 200:
         response = json.loads(r.text)
-    pp.pprint(response)
+    # pp.pprint(response)
     errno = response["errno"]
     errmsg = response["errmsg"]
     if errno != "0" and errno != 0:
@@ -33,12 +33,11 @@ def get_stream_panda(room_id):
 
     plflag = data["videoinfo"]["plflag"].split("_")
 
-
     r_2 = requests.get("http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid={}".format(room_id))
     response_2 = None
     if r_2.status_code == 200:
         response_2 = json.loads(r_2.text)
-    pp.pprint(response_2)
+    # pp.pprint(response_2)
     errno = response_2["errno"]
     errmsg = response_2["errmsg"]
     if errno != "0" and errno != 0:
@@ -53,17 +52,20 @@ def get_stream_panda(room_id):
     room_start_time = data_2["roominfo"]["start_time"]
     room_status = data_2["roominfo"]["status"]
 
-    if room_status is not "2":
+    if room_status is not '2':
         print("!!Errno : The live stream is NOT ONLINE!")
         return []
 
     # "http://pl-hls3.live.panda.tv/live_panda/7d9bdfd8beca4be796bc4b757503decd_small.m3u8",
-    title_search = re.search('.*/live_panda/(.*)(_small)?.m3u8', data_2["videoinfo"]["address"], re.IGNORECASE)
+    title_search = re.search('.*/live_panda/([0-9A-Za-z]*)(_small)?.m3u8', data_2["videoinfo"]["address"], re.IGNORECASE)
 
     if title_search:
         video_id = title_search.group(1)
-        real_url = "http://pl{}.live.panda.tv/live_panda/{}.flv".format(plflag[1], video_id)
-        stream_urls.append(real_url)
+        real_url_main = "http://pl{}.live.panda.tv/live_panda/{}.flv".format(plflag[1], video_id)
+        stream_urls.append(real_url_main)
+        if len(plflag) >= 2:
+            real_url_backup = "http://pl{}.live.panda.tv/live_panda/{}.flv".format(plflag[0], video_id)
+            stream_urls.append(real_url_backup)
         pp.pprint(stream_urls)
     else:
         print("cannot extract video id from url: " + str(data_2["videoinfo"]["address"]))
