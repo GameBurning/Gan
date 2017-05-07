@@ -11,7 +11,7 @@ Params[Form-data] :
 
 * ```room_id``` 
 * ```platform``` (only "panda" works now)
-* ```output_config``` (not working now)
+* ```output_config :  {"block_size": 20}``` (block_size is in seconds)
 
 Return :
 

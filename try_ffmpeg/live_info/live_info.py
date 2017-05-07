@@ -23,7 +23,7 @@ def get_stream_panda(room_id):
     response = None
     if r.status_code == 200:
         response = json.loads(r.text)
-    pp.pprint(response)
+    # pp.pprint(response)
     errno = response["errno"]
     errmsg = response["errmsg"]
     if errno != "0" and errno != 0:
@@ -37,7 +37,7 @@ def get_stream_panda(room_id):
     response_2 = None
     if r_2.status_code == 200:
         response_2 = json.loads(r_2.text)
-    pp.pprint(response_2)
+    # pp.pprint(response_2)
     errno = response_2["errno"]
     errmsg = response_2["errmsg"]
     if errno != "0" and errno != 0:

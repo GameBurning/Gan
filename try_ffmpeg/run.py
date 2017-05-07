@@ -8,6 +8,7 @@ from flask import jsonify
 from flask import request
 import time
 import os
+import json
 import signal
 
 if str(sys.version_info[0]) != "3":
@@ -19,16 +20,14 @@ room_platform_to_record_id = {}
 record_info = {}
 lock = threading.Lock()
 
-def start_download(url, file_prefix , record_id):
+def start_download(url, file_prefix , record_id, block_size):
     if not os.path.exists(record_id):
         os.makedirs(record_id)
-    command = "ffmpeg -i " + url +" -c copy -f segment -segment_time 8 -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
+    command = "ffmpeg -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
     lock.acquire()
-    print("++++++++++++++++++acquired 9")
     record_info[record_id]["ffmpeg_process_handler"] = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     process = record_info[record_id]["ffmpeg_process_handler"]
     lock.release()
-    print("------------------released 9")
 
     # Poll process for new output until finished
     while True:
@@ -38,31 +37,25 @@ def start_download(url, file_prefix , record_id):
 
         if nextline == '' and process.poll() is not None:
             lock.acquire()
-            print("++++++++++++++++++acquired 6")
             record_info[record_id]["status"] = "ready"
             record_info[record_id]["ffmpeg_process_handler"] = None
             lock.release()
-            print("------------------released 6")
             break
 
         if "error" in nextline:
             print("error in getting streaming data...")
             lock.acquire()
-            print("++++++++++++++++++acquired 1")
             record_info[record_id]["status"] = "error"
             record_info[record_id]["ffmpeg_process_handler"] = None
             lock.release()
-            print("------------------released 1")
             break
 
         if "Press [q] to stop" in nextline:
-            print("starting recording......")
+            print("..........starting recording id : " + str(record_id))
             lock.acquire()
-            print("++++++++++++++++++acquired 2")
             record_info[record_id]["status"] = "recording"
             record_info[record_id]["start_time"] = str(int(time.time()))
             lock.release()
-            print("------------------released 2")
 
     return None
 
@@ -71,9 +64,19 @@ def start():
     room_id = request.form.get('room_id', -1)
     platform = request.form.get('platform', "")
     output_config = request.form.get('output_config', "")
+
     print("room_id: " + str(room_id))
     print("platform: " + str(platform))
     print("output_config: " + str(output_config))
+
+    output_config = json.loads(output_config)
+
+    block_size = 20
+
+    if "block_size" in output_config.keys():
+        block_size = output_config["block_size"]
+        if not isinstance( block_size, int ):
+            return "blocksize should be int", 204
 
     if room_id == -1:
         print("Need room_id")
@@ -100,37 +103,33 @@ def start():
     record_info[record_id] = {"start_time" : "", "status" : "ready", "thread": None, "ffmpeg_process_handler" : None}
     print("Assigned record_id : " + record_id)
 
-    res = create_recording_thread(urls, "", record_id)
+    res = create_recording_thread(urls, "", record_id, block_size)
 
     if res != 0:
         return "Can not get streaming data", 204
 
     return jsonify({'record_id' : record_id, 'start_time' : record_info[record_id]["start_time"] })
 
-def create_recording_thread(urls, file_prefix, record_id):
+def create_recording_thread(urls, file_prefix, record_id, block_size):
     if len(urls) == 0:
         return 1
-    t = threading.Thread(target=start_download, args=[urls[0], file_prefix, record_id])
+    t = threading.Thread(target=start_download, args=[urls[0], file_prefix, record_id, block_size])
     record_info[record_id]["thread"] = t
     t.start()
 
     while(True):
         lock.acquire()
-        print("++++++++++++++++++acquired 3")
         status = record_info[record_id]["status"]
         start_time = record_info[record_id]["start_time"]
         lock.release()
-        print("------------------released 3")
 
         if status == "error":
             print("Streaming download fail, try next url...")
             lock.acquire()
-            print("++++++++++++++++++acquired 4")
             urls.pop(0)
             record_info[record_id]["status"] = "ready"
             record_info[record_id]["thread"] = None
             lock.release()
-            print("------------------released 4")
             return create_recording_thread(urls, file_prefix, record_id)
         elif status == "recording":
             print('record_info[record_id]["start_time"] : ' + str(start_time))
@@ -149,10 +148,8 @@ def stop():
         return "need record_id", 204
 
     lock.acquire()
-    print("++++++++++++++++++acquired 7")
     if record_info[record_id]["status"] != "recording":
         lock.release()
-        print("------------------released 7")
         return "Already stopped", 204
 
     # record_info[record_id]["ffmpeg_process_handler"].kill()
@@ -164,10 +161,8 @@ def stop():
             record_info[record_id]["ffmpeg_process_handler"] = None
             sys.stdout.flush()
             lock.release()
-            print("------------------released 8")
             return "stopped"
     lock.release()
-    print("------------------released 8")
     return "stop failed", 204
 
 
@@ -181,15 +176,19 @@ def delete():
     print("start_block_id: " + start_block_id)
     print("end_block_id: " + end_block_id)
 
+    if not isinstance( start_block_id, int ):
+        print("start_block_id is integer")
+
     if record_id == -1:
         return "", 204
 
     for i in range(int(start_block_id), int(end_block_id)+1):
         try:
             os.remove(record_id + "/" + str(i) + ".flv")
-        except OSError:
-            pass
-    return jsonify({'record_id' : '', 'start_time' : '' })
+        except OSError as e:
+            print(str(e))
+
+    return "deleted", 200
 
 @app.route('/process', methods=['POST'])
 def process():
