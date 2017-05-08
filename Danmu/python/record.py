@@ -1,5 +1,4 @@
 import requests
-import json
 
 def start_record(roomid, platform='panda', block_size=30):
     para = {'room_id': roomid, 'platform': platform, 'output_config':{'block_size': block_size}}
@@ -17,7 +16,12 @@ def delete_block(record_id, start_id, end_id):
     para = {'record_id': record_id, "start_block_id": start_id,\
             "end_block_id": end_id}
     r = requests.post('http://127.0.0.1:5002/delete', data = para)
-    return r.status_code
+    print(r.json()['info'])
+    if r.json()['code'] == 0:
+        return (-1, -1)
+    else:
+        print(r.json()['info'])
+        return (start_id, end_id)
 
 
 def combine_block(record_id, start_id, end_id, name):
@@ -26,7 +30,12 @@ def combine_block(record_id, start_id, end_id, name):
             'end_block_id': end_id, 'start_block_offset': -1, \
             "end_block_offset": -1}
     r = requests.post('http://127.0.0.1:5002/process', data = para)
-    return r.status_code
+    print(r.json()['info'])
+    if r.json()['code'] == 0:
+        return (-1, -1)
+    else:
+        print(r.json()['info'])
+        return (start_id, end_id)
 
 
 if __name__ == "__main__":
