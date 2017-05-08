@@ -383,7 +383,7 @@ def process():
 def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    app.run()
+    app.run(port=5002)
 
 if __name__ == "__main__":
     main()
