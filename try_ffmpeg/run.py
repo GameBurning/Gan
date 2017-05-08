@@ -17,6 +17,7 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
+output_dir = "output"
 room_platform_to_record_id = {}
 record_info = {}
 lock = threading.Lock()
@@ -37,16 +38,16 @@ def split_video(source_file, cut_offset, dst1, dst2):
 # offset    -1      keep whole video
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     print("..........starting process")
-    if not os.path.exists(record_id):
+    if not os.path.exists(output_dir + "/"+record_id):
         record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "record with id :" + record_id +" not exists"}
         return -1, "no record exists"
-    if not os.path.exists("process_results"):
-        os.makedirs("process_results")
+    if not os.path.exists(output_dir + "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"process_results")
 
-    output_file_name = "process_results/" + name + ".flv"
-    start_file_name = record_id + "/"+ str(start_block_id) + ".flv"
-    end_file_name = record_id + "/"+ str(end_block_id) + ".flv"
-    list_file_name = record_id + "/"+ name + ".txt"
+    output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
+    start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
+    end_file_name = output_dir + "/"+ record_id + "/"+ str(end_block_id) + ".flv"
+    list_file_name = output_dir + "/"+ record_id + "/"+ name + ".txt"
 
     lock.acquire()
     record_info[record_id]["processing_tasks"][name]["status"] = "running"
@@ -54,11 +55,11 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
     if start_block_id > end_block_id:
         lock.acquire()
-        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "start_block_id > end_block_id"}
+        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "start_block_id should smaller or equal to end_block_id"}
         lock.release()
         return -1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
-        command = "ffmpeg -y -i {} -ss {} -to {} -vcodec copy -acodec copy {}".format(start_file_name, start_block_offset, end_block_offset, output_file_name)
+        command = "ffmpeg -y  -ss {} -i {} -t {} -vcodec copy -acodec copy {}".format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
     else:
         list_file = open(list_file_name, "w")
 
@@ -66,8 +67,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             split_video( \
                 start_file_name, \
                 start_block_offset, \
-                record_id+"/"+ str(start_block_id) + "_cut_1.flv", \
-                record_id+"/"+ str(start_block_id)+"_cut_2.flv" \
+                output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv", \
+                output_dir + "/"+ record_id+"/"+ str(start_block_id)+"_cut_2.flv" \
             )
             list_file.write("file " + str(start_block_id) + "_cut_2.flv\n")
             print("file " + str(start_block_id) + "_cut_2.flv")
@@ -86,8 +87,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             split_video( \
                 end_file_name, \
                 end_block_offset, \
-                record_id+"/"+ str(end_block_id)+"_cut_1.flv", \
-                record_id+"/"+ str(end_block_id)+"_cut_2.flv" \
+                output_dir + "/"+ record_id+"/"+ str(end_block_id)+"_cut_1.flv", \
+                output_dir + "/"+ record_id+"/"+ str(end_block_id)+"_cut_2.flv" \
             )
             list_file.write("file " + str(end_block_id) + "_cut_1.flv\n")
             print("file " + str(end_block_id) + "_cut_1.flv")
@@ -140,9 +141,9 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
 
 def start_download(url, file_prefix , record_id, block_size):
-    if not os.path.exists(record_id):
-        os.makedirs(record_id)
-    command = "ffmpeg -y -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 ./"+record_id+"/"+ file_prefix +"%d.flv"
+    if not os.path.exists(output_dir + "/"+record_id):
+        os.makedirs(output_dir + "/"+record_id)
+    command = "ffmpeg -y -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 "+ output_dir +"/"+record_id+"/"+ file_prefix +"%d.flv"
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     process = record_info[record_id]["ffmpeg_process_handler"]
@@ -195,26 +196,26 @@ def start():
     if "block_size" in output_config.keys():
         block_size = output_config["block_size"]
         if not isinstance( block_size, int ):
-            return "blocksize should be int", 204
+            return jsonify({"code": 1, "info" : "blocksize should be int"}), 200
 
     if room_id == -1:
         print("Need room_id")
-        return "Need room_id", 204
+        return jsonify({"code": 1, "info" : "need room_id"}), 200
 
     if platform not in live_info_store:
         print("Platform " + str(platform) + " not in list : " + str(live_info_store))
-        return "Platform " + str(platform) + " not in list : " + str(live_info_store), 204
+        return jsonify({"code": 1, "info" : "platform " + str(platform) + " not in list : " + ', '.join(live_info_store.keys())}), 200
 
     urls = get_stream_url(platform, room_id)
 
     if not urls:
         print("cannot get streaming url")
-        return "cannot get streaming url", 204
+        return jsonify({"code": 1, "info" : "cannot get streaming url"}), 200
 
     tmp_name = str(room_id) + str(platform)
     if tmp_name in room_platform_to_record_id and record_info[room_platform_to_record_id[tmp_name]]["status"] == "recording":
         print("Already started")
-        return "Already started", 204
+        return jsonify({"code": 1, "info" : "already started"}), 200
 
     record_id = str(platform) + "_" + str(room_id) + "_" + str(int(time.time()))
     room_platform_to_record_id[str(room_id) + str(platform)] = record_id
@@ -231,9 +232,9 @@ def start():
     res = create_recording_thread(urls, "", record_id, block_size)
 
     if res != 0:
-        return "Can not get streaming data", 204
+        return jsonify({"code": 1, "info" : "can not get streaming data"}), 200
 
-    return jsonify({'record_id' : record_id, 'start_time' : record_info[record_id]["start_time"] })
+    return jsonify({"code": 0, "info" : {'record_id' : record_id, 'start_time' : record_info[record_id]["start_time"] }}), 200
 
 def create_recording_thread(urls, file_prefix, record_id, block_size):
     if len(urls) == 0:
@@ -271,12 +272,12 @@ def stop():
     print("record_id: " + str(record_id))
 
     if record_id == -1:
-        return "need record_id", 204
+        return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
     if (record_id not in record_info) or record_info[record_id]["status"] != "recording":
         lock.release()
-        return "Already stopped", 204
+        return jsonify({"code": 1, "info" : "Already stopped"}), 200
 
     # record_info[record_id]["ffmpeg_process_handler"].kill()
     os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
@@ -287,9 +288,9 @@ def stop():
             record_info[record_id]["ffmpeg_process_handler"] = None
             sys.stdout.flush()
             lock.release()
-            return "stopped"
+            return jsonify({"code": 0, "info" : "stopped"}), 200
     lock.release()
-    return "stop failed", 204
+    return jsonify({"code": 1, "info" : "stop failed"}), 200
 
 
 @app.route('/delete', methods=['POST'])
@@ -302,19 +303,26 @@ def delete():
     print("start_block_id: " + start_block_id)
     print("end_block_id: " + end_block_id)
 
-    if not isinstance( start_block_id, int ):
-        print("start_block_id is integer")
+    try:
+        value = int(start_block_id)
+        value = int(end_block_id)
+    except ValueError:
+        return jsonify({"code": 1, "info" : "start_block_id, end_block_id should be integer number"}), 200
+
+    if int(start_block_id) > int(end_block_id):
+        print("start_block_id > end_block_id")
+        return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
     if record_id == -1:
-        return "", 204
+        return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     for i in range(int(start_block_id), int(end_block_id)+1):
         try:
-            os.remove(record_id + "/" + str(i) + ".flv")
+            os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
         except OSError as e:
             print(str(e))
 
-    return "deleted", 200
+    return jsonify({"code": 0, "info" : "deleted"}), 200
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -339,7 +347,7 @@ def process():
     print("name: " + name)
 
     if record_id == -1:
-        return "", 204
+        return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     # start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset)
     lock.acquire()
@@ -366,44 +374,16 @@ def process():
         lock.release()
 
         if process_task["status"] == "error":
-            return "processing error"+process_task["info"], 204
+            return jsonify({"code": 1, "info" : process_task["info"]}), 200
         elif process_task["status"] == "finished":
-            return "finished", 200
+            return jsonify({"code": 0, "info" : "finished"}), 200
 
-    return "time out", 204
-
-prefixs=["v1", "v2", "v3", "v4"]
-
-urls = ["http://220.243.224.53/pl3.live.panda.tv/live_panda/9b2f7ed9e4c50e2c879d5582adb1f596.flv",
- "http://pl12.live.panda.tv/live_panda/a60c08c3c87fe77d3541f2b91fe0b3d7.flv",
- "http://pl12.live.panda.tv/live_panda/cb8887f5a48a943a6d1312c0cf10fd5d.flv",
- "http://pl12.live.panda.tv/live_panda/2c0b221f5f544d4c009d7167043b9e04.flv"]
-
-# def _test():
-#     print(live_info_store)
-    # get_stream_url(room_id="1002829", platform = "panda")
+    return jsonify({"code": 1, "info" : "time out"}), 200
 
 def main():
-    # for i in range(4):
-    #     t = threading.Thread(target=start_download, args=[prefixs[i], urls[i]])
-    #     threads.append(t)
-    #     t.start()
-    # for t in threads:
-    #     t.join()
-    # _test()
-    if sys.version_info[0] < 3:
-        raise "Must be using Python 3"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     app.run(port=5002)
-
-    # if sys.version_info[0] < 3:
-    #     raise "Must be using Python 3"
-
-
-    # split_video("panda_66666_1494180289", "10", 5, "10_1", "10_2")
-
-    # def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset)
-    # t = threading.Thread(target=start_process, args=["panda_642207_1494191313", "concatenated", 1, -1, 4, -1])
-    # t.start()
 
 if __name__ == "__main__":
     main()

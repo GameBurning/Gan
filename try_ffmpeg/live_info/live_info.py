@@ -18,7 +18,10 @@ def get_stream_panda(room_id):
     room_status = None
     video_id = None
 
-    r = requests.get("http://www.panda.tv/api_room_v3?roomid={}&__plat=pc_web&_={}".format(room_id, int(time.time())))
+    try:
+        r = requests.get("http://www.panda.tv/api_room_v3?roomid={}&__plat=pc_web&_={}".format(room_id, int(time.time())), timeout=3)
+    except:
+        return []
     pp = pprint.PrettyPrinter(indent=4)
     response = None
     if r.status_code == 200:
@@ -33,7 +36,10 @@ def get_stream_panda(room_id):
 
     plflag = data["videoinfo"]["plflag"].split("_")
 
-    r_2 = requests.get("http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid={}".format(room_id))
+    try:
+        r_2 = requests.get("http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid={}".format(room_id), timeout=3)
+    except:
+        return []
     response_2 = None
     if r_2.status_code == 200:
         response_2 = json.loads(r_2.text)
