@@ -59,7 +59,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         lock.release()
         return -1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
-        command = "ffmpeg -y -i {} -ss {} -to {} -vcodec copy -acodec copy {}".format(start_file_name, start_block_offset, end_block_offset, output_file_name)
+        command = "ffmpeg -y  -ss {} -i {} -t {} -vcodec copy -acodec copy {}".format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
     else:
         list_file = open(list_file_name, "w")
 
