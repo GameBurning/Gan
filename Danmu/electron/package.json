@@ -1,8 +1,0 @@
-{
-  "name": "707弹幕助手",
-  "version": "0.0.1",
-  "main": "main.js",
-  "devDependencies": {
-    "electron-prebuilt": "^1.2.8"
-  }
-}

@@ -321,7 +321,7 @@ def delete():
     for i in range(int(start_block_id), int(end_block_id)+1):
         try:
             os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
-        except OSError as e:
+        except Exception as e:
             print(str(e))
 
     return jsonify({"code": 0, "info" : "deleted"}), 200
