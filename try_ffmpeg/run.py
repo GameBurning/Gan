@@ -139,7 +139,6 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
     return None
 
-
 def start_download(url, file_prefix , record_id, block_size):
     if not os.path.exists(output_dir + "/"+record_id):
         os.makedirs(output_dir + "/"+record_id)
@@ -189,9 +188,12 @@ def start():
     print("platform: " + str(platform))
     print("output_config: " + str(output_config))
 
-    output_config = json.loads(output_config)
-
     block_size = 20
+
+    if output_config != "":
+        output_config = json.loads(output_config)
+    else:
+        output_config = {"block_size" : block_size}
 
     if "block_size" in output_config.keys():
         block_size = output_config["block_size"]
