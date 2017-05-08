@@ -8,8 +8,8 @@ import os
 import platform
 import re
 import requests
-import Danmu.python.record as record
-#import record
+#import Danmu.python.record as record
+import record
 
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
@@ -64,11 +64,13 @@ class DanmuThread(threading.Thread):
         (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
         while ONLINE_FLAGS[self.roomID]:
             #print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
-            start_time = int(time.time())
+            start_time = int(start_time)
+            DANMU_DICT[self.roomID] = 0
             TRIPLE_SIX_DICT[self.roomID] = 0
             LUCKY_DICT[self.roomID] = 0
             DOUYU_DICT[self.roomID] = 0
             #print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
+            print('wait time is :{}'.format(start_time + ANALYSIS_DURATION * (block_id + 1) - time.time()))
             time.sleep(start_time + ANALYSIS_DURATION * (block_id + 1) - time.time())
             #print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
             logfile.write("{},{},{},{},{},{}\n".format(start_time, \
@@ -80,14 +82,12 @@ class DanmuThread(threading.Thread):
             block_score = TRIPLE_SIX_DICT[self.roomID] * 8 + LUCKY_DICT[self.roomID] * 12 + \
                           DOUYU_DICT[self.roomID] * 20
             score_dict.append(block_score)
+            print('block_id is {}'.format(block_id))
             if block_id >= 2:
-                if score_dict[-2] >= 100:
-                    output_name = 'block{}_score{}_666{}_lucky{}_douyu{}'.format(block_id, block_score, \
-                                                                                 TRIPLE_SIX_DICT[self.roomID],\
-                                                                                 LUCKY_DICT[self.roomID],\
-                                                                                 DOUYU_DICT[self.roomID])
+                if score_dict[-2] >= 20:
+                    output_name = 'block{}_score{}'.format(block_id, score_dict[-2])
                     record.combine_block(record_id, block_id - 2, block_id, output_name)
-            record.delete_block(record_id, block_id-2, block_id)
+                record.delete_block(record_id, block_id - 2, block_id - 2)
 
             logfile.flush()
             block_id += 1
