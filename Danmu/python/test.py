@@ -8,7 +8,9 @@ import os
 import platform
 import re
 import requests
-import record
+import Danmu.python.record as record
+#import record
+
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
 CHATROOMAPI = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
@@ -36,9 +38,10 @@ DANMU_DICT = {}
 TRIPLE_SIX_DICT = {}
 LUCKY_DICT = {}
 AUDITION_DICT = {}
+# SCORE_DICT = {}
 DOUYU_DICT = {}
 ONLINE_FLAGS = {}
-ANALYSIS_DURATION = 10
+ANALYSIS_DURATION = 30
 
 class DanmuThread(threading.Thread):
     def __init__(self, roomID, name):
@@ -50,22 +53,23 @@ class DanmuThread(threading.Thread):
         print("===========DanmuThread on {} starts===========".format(self.name))
         filename = str(self.roomID) + "_" + self.name + ".csv"
         logdir = os.path.expanduser(LOGFILEDIR)
+        score_dict = []
+        block_id = 0
         # getChatInfo(self.roomID)
         if os.path.isfile(logdir + filename):
             logfile = open(logdir + filename, 'a')
         else:
             logfile = open(logdir + filename, 'w')
             logfile.write("time, danmu, 666, 学不来, 逗鱼时刻, audition\n")
-        record.start_record(self.roomID)
+        (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
         while ONLINE_FLAGS[self.roomID]:
             #print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
             start_time = int(time.time())
-            DANMU_DICT[self.roomID] = 0
             TRIPLE_SIX_DICT[self.roomID] = 0
             LUCKY_DICT[self.roomID] = 0
             DOUYU_DICT[self.roomID] = 0
             #print("{} time 2 is :{}".format(self.name, time.ctime(time.time())))
-            time.sleep(ANALYSIS_DURATION)
+            time.sleep(start_time + ANALYSIS_DURATION * (block_id + 1) - time.time())
             #print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
             logfile.write("{},{},{},{},{},{}\n".format(start_time, \
                                               DANMU_DICT[self.roomID], \
@@ -73,9 +77,22 @@ class DanmuThread(threading.Thread):
                                               LUCKY_DICT[self.roomID],\
                                               DOUYU_DICT[self.roomID],\
                                               AUDITION_DICT[self.roomID]))
+            block_score = TRIPLE_SIX_DICT[self.roomID] * 8 + LUCKY_DICT[self.roomID] * 12 + \
+                          DOUYU_DICT[self.roomID] * 20
+            score_dict.append(block_score)
+            if block_id >= 2:
+                if score_dict[-2] >= 100:
+                    output_name = 'block{}_score{}_666{}_lucky{}_douyu{}'.format(block_id, block_score, \
+                                                                                 TRIPLE_SIX_DICT[self.roomID],\
+                                                                                 LUCKY_DICT[self.roomID],\
+                                                                                 DOUYU_DICT[self.roomID])
+                    record.combine_block(record_id, block_id - 2, block_id, output_name)
+            record.delete_block(record_id, block_id-2, block_id)
+
             logfile.flush()
+            block_id += 1
             #print("{} time 4 is :{}".format(self.name, time.ctime(time.time())))
-            print("{}'s logfile: time:{}, danmu:{}, 666:{}, gou:{},douyu:{},audition:{}"\
+            print("{}'s logfile: time:{}, danmu:{}, 666:{}, gou:{}, douyu:{}, audition:{}"\
                   .format(self.name, start_time,\
                           DANMU_DICT[self.roomID],\
                           TRIPLE_SIX_DICT[self.roomID],\

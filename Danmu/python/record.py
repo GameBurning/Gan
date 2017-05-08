@@ -5,8 +5,26 @@ def start_record(roomid, platform='panda', block_size=30):
     para = {'room_id': roomid, 'platform': platform, 'output_config': \
         json.dumps({'block_size': block_size})}
     r = requests.post('http://127.0.0.1:5002/start', data=para)
-    print(r.json())
-    return(r.json()['start_time'])
+    if r.status_code // 100 == 2:
+        print(r.json())
+        return((r.json()['record_id'], r.json()['start_time']))
+    else:
+        return (-1, -1)
+
+
+def delete_block(record_id, start_id, end_id):
+    para = {'record_id': record_id, "start_block_id": start_id,\
+            "end_block_id": end_id}
+    r = requests.post('http://127.0.0.1:5002/delete', data = para)
+    return r.status_code
+
+
+def combine_block(record_id, start_id, end_id, name):
+    para = {'name':name, 'record_id':record_id, 'start_block_id':start_id,
+            'end_block_id': end_id, 'start_block_offset': -1, \
+            "end_block_offset": -1}
+    r = requests.post('http://127.0.0.1:5002/process', data = para)
+    return r.status_code
 
 
 if __name__ == "__main__":
