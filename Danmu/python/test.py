@@ -27,7 +27,7 @@ BAMBOO_TYPE = '206'
 AUDIENCE_TYPE = '207'
 TU_HAO_TYPE = '306'
 SYSINFO = platform.system()
-INIT_PROPERTIES = 'temp.properties'
+INIT_PROPERTIES = 'init.properties'
 MANAGER = '60'
 SP_MANAGER = '120'
 HOSTER = '90'
@@ -41,7 +41,7 @@ AUDITION_DICT = {}
 # SCORE_DICT = {}
 DOUYU_DICT = {}
 ONLINE_FLAGS = {}
-ANALYSIS_DURATION = 30
+ANALYSIS_DURATION = 45
 
 class DanmuThread(threading.Thread):
     def __init__(self, roomID, name):
@@ -61,10 +61,19 @@ class DanmuThread(threading.Thread):
         else:
             logfile = open(logdir + filename, 'w')
             logfile.write("time, danmu, 666, 学不来, 逗鱼时刻, audition\n")
-        (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
+        try:
+            (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
+            start_time = int(start_time)
+        except Exception:
+            print(Exception)
+            return
         while ONLINE_FLAGS[self.roomID]:
             #print("{} time 1 is :{}".format(self.name, time.ctime(time.time())))
-            start_time = int(start_time)
+            block_start_time = int(time.time())
+            if block_id >= 1:
+                last_triple = TRIPLE_SIX_DICT[self.roomID]
+                last_lucky = LUCKY_DICT[self.roomID]
+                last_douyu = DOUYU_DICT[self.roomID]
             DANMU_DICT[self.roomID] = 0
             TRIPLE_SIX_DICT[self.roomID] = 0
             LUCKY_DICT[self.roomID] = 0
@@ -73,7 +82,7 @@ class DanmuThread(threading.Thread):
             print('wait time is :{}'.format(start_time + ANALYSIS_DURATION * (block_id + 1) - time.time()))
             time.sleep(start_time + ANALYSIS_DURATION * (block_id + 1) - time.time())
             #print("{} time 3 is :{}".format(self.name, time.ctime(time.time())))
-            logfile.write("{},{},{},{},{},{}\n".format(start_time, \
+            logfile.write("{},{},{},{},{},{}\n".format(block_start_time, \
                                               DANMU_DICT[self.roomID], \
                                               TRIPLE_SIX_DICT[self.roomID],\
                                               LUCKY_DICT[self.roomID],\
@@ -84,8 +93,9 @@ class DanmuThread(threading.Thread):
             score_dict.append(block_score)
             print('block_id is {}'.format(block_id))
             if block_id >= 2:
-                if score_dict[-2] >= 20:
-                    output_name = 'block{}_score{}'.format(block_id, score_dict[-2])
+                if score_dict[-2] >= 60:
+                    output_name = '{}_block{}_score{}_lucky{}_douyu{}_triple{}'\
+                        .format(self.name, block_id - 1, score_dict[-2], last_lucky, last_douyu, last_triple)
                     record.combine_block(record_id, block_id - 2, block_id, output_name)
                 record.delete_block(record_id, block_id - 2, block_id - 2)
 
