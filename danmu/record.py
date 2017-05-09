@@ -1,7 +1,7 @@
 import requests
 
-def start_record(roomid, platform='panda', block_size=30):
-    para = {'room_id': roomid, 'platform': platform, 'output_config':{'block_size': block_size}}
+def start_record(roomid, platform='panda', block_size = 30):
+    para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
     r = requests.post('http://127.0.0.1:5002/start', data=para)
     if r.status_code // 100 == 2:
         print(r.json())
