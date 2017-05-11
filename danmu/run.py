@@ -42,6 +42,7 @@ DOUYU_DICT = {}
 ONLINE_FLAGS = {}
 ANALYSIS_DURATION = 45
 MAIN_THREAD_SLEEP_TIME = 5
+LOCK = threading.Lock()
 
 class DanmuThread(threading.Thread):
     def __init__(self, roomID, name):
@@ -61,7 +62,7 @@ class DanmuThread(threading.Thread):
             logfile = open(logdir + filename, 'a')
         else:
             logfile = open(logdir + filename, 'w')
-            logfile.write("time, danmu, 666, 学不来, 逗鱼时刻, audition\n")
+            logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻, audition\n")
             logfile.flush()
         try:
             (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
@@ -71,23 +72,27 @@ class DanmuThread(threading.Thread):
             return
         while ONLINE_FLAGS[self.roomID]:
             block_start_time = int(time.time())
+            LOCK.acquire()
             DANMU_DICT[self.roomID].append(0)
             TRIPLE_SIX_DICT[self.roomID].append(0)
             LUCKY_DICT[self.roomID].append(0)
             DOUYU_DICT[self.roomID].append(0)
+            LOCK.release()
+
             sleep_time = start_time + ANALYSIS_DURATION * (block_id + 1) - time.time()
             print('{}\'s wait time is :{}'.format(self.name, sleep_time))
             time.sleep(sleep_time)
 
             try:
-                logfile.write("{},{},{},{},{},{}\n".format(block_start_time, \
+                logfile.write("{},{},{},{},{},{},{}\n".format(block_start_time, \
+                                                              block_id, \
                                               DANMU_DICT[self.roomID][block_id], \
                                               TRIPLE_SIX_DICT[self.roomID][block_id],\
                                               LUCKY_DICT[self.roomID][block_id],\
                                               DOUYU_DICT[self.roomID][block_id],\
                                               AUDITION_DICT[self.roomID][block_id]))
-                print("{}'s logfile: time:{}, danmu:{}, 666:{}, gou:{}, douyu:{}, audition:{}" \
-                      .format(self.name, block_start_time, \
+                print("{}'s logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}, audition:{}" \
+                      .format(self.name, block_start_time, block_id, \
                               DANMU_DICT[self.roomID][block_id], \
                               TRIPLE_SIX_DICT[self.roomID][block_id], \
                               LUCKY_DICT[self.roomID][block_id], \
@@ -96,7 +101,6 @@ class DanmuThread(threading.Thread):
                 logfile.flush()
             except Exception as e:
                 print(e)
-
 
             block_score = TRIPLE_SIX_DICT[self.roomID] * 8 + LUCKY_DICT[self.roomID] * 12 + \
                           DOUYU_DICT[self.roomID] * 20
@@ -149,6 +153,7 @@ def loadInit()->[]:
 
 
 def add_danmu(roomid, type):
+    LOCK.acquire()
     if type == "general":
         DANMU_DICT[roomid][-1] += 1
     elif type == "666":
@@ -157,6 +162,7 @@ def add_danmu(roomid, type):
         DOUYU_DICT[roomid][-1] += 1
     else:
         LUCKY_DICT[roomid][-1] += 1
+    LOCK.release()
 
 
 def update_audition(roomid, audition_num):
