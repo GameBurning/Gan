@@ -3,12 +3,22 @@ import requests
 def start_record(roomid, platform='panda', block_size = 30):
     para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
     r = requests.post('http://127.0.0.1:5002/start', data=para)
-    if r.status_code // 100 == 2:
+    if r.json()['code'] == 0:
         print(r.json())
-        return((r.json()['info']['record_id'], r.json()['info']['start_time']))
-
+        return ((r.json()['info']['record_id'], r.json()['info']['start_time']))
     else:
+        print(r.json()['info'])
         return (-1, -1)
+
+
+def stop_record(roomid):
+    r = requests.post('http://127.0.0.1:5002/start', data={"room_id": roomid})
+    if r.json()['code'] == 0:
+        print("roomid's start succeeds")
+        return True
+    else:
+        print(r.json()['info'])
+        return False
 
 
 def delete_block(record_id, start_id, end_id):
@@ -18,10 +28,11 @@ def delete_block(record_id, start_id, end_id):
     r = requests.post('http://127.0.0.1:5002/delete', data = para)
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        return (-1, -1)
+        print("delete successful")
+        return (start_id, end_id)
     else:
         print(r.json()['info'])
-        return (start_id, end_id)
+        return (-1, -1)
 
 
 def combine_block(record_id, start_id, end_id, name):
@@ -32,11 +43,12 @@ def combine_block(record_id, start_id, end_id, name):
     r = requests.post('http://127.0.0.1:5002/process', data = para)
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        return (-1, -1)
+        print("{}'s combination succeed".format(name))
+        return (start_id, end_id)
     else:
         print(r.json()['info'])
-        return (start_id, end_id)
-
-
+        return (-1, -1)
+        
+        
 if __name__ == "__main__":
     print(start_record(10455))

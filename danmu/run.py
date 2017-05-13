@@ -42,6 +42,7 @@ DOUYU_DICT = {}
 ONLINE_FLAGS = {}
 # LOCK = {}
 ANALYSIS_DURATION = 45
+THRESHOLD = 150
 MAIN_THREAD_SLEEP_TIME = 5
 
 
@@ -59,18 +60,18 @@ class DanmuThread(threading.Thread):
         except Exception as e:
             print(e)
             return
-        filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
+        statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
         logdir = os.path.expanduser(LOGFILEDIR)
         danmu = []
         lucky = []
         douyu = []
         triple_six = []
         score_dict = []
-        delete_range = []
+        #delete_range = [0, 0]
         combine_range = []
         audition = []
         block_id = 0
-        logfile = open(logdir + filename, 'w')
+        logfile = open(logdir + statistic_filename, 'w')
         logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻, audition\n")
         while ONLINE_FLAGS[self.roomID]:
             block_start_time = int(time.time())
@@ -105,28 +106,35 @@ class DanmuThread(threading.Thread):
 
             print('{}\'s current block_id is {}'.format(self.name, block_id))
             if block_id >= 2:
-                if score_dict[-2] >= 60:
-                    if combine_range != [] and block_id - 2 <= combine_queue[1] and \
-                                            combine_queue[1] - combine_queue[0] < 10:
-                        combine_queue[1] = block_id
+                if score_dict[-2] >= THRESHOLD:
+                    '''
+                    if combine_range == []:
+                        combine_range = [block_id - 2, block_id]
+                    elif combine_range != [] and combine_range[1] == block_id - 1:
+                        combine_range[1] = block_id
                     else:
                         output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
-                            .format(self.name, combine_queue[0], combine_queue[1],
-                                    score_dict[combine_queue[0] + 1],
-                                    lucky[combine_queue[0] + 1],
-                                    douyu[combine_queue[0] + 1],
-                                    triple_six[combine_queue[0] + 1])
+                            .format(self.name, combine_range[0], combine_range[1],
+                                    score_dict[combine_range[0] + 1],
+                                    lucky[combine_range[0] + 1],
+                                    douyu[combine_range[0] + 1],
+                                    triple_six[combine_range[0] + 1])
                         threading.Thread(target=record.combine_block,
-                                         args=(record_id, combine_queue[0], combine_queue[1], output_name)).start()
-                        combine_queue = [block_id - 2, block_id]
+                                         args=(record_id, combine_range[0], combine_range[1], output_name)).start()
+                    '''
+                    output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
+                        .format(self.name, block_id - 2, block_id,
+                                score_dict[-2],
+                                lucky[-2],
+                                douyu[-2],
+                                triple_six[-2])
+                    threading.Thread(target=record.combine_block,
+                                     args=(record_id, block_id - 2, block_id, output_name)).start()
 
-                if block_id >= 3 and delete_range[-1][-1] == block_id - 3 and delete_range[1] - delete_range[0] < 10:
-                    delete_range[-1][-1] = block_id - 2
-                else:
-                    threading.Thread(target=record.delete_block, args=(record_id, [delete_range[0]], delete_range[1]))
-                    delete_range = [block_id - 2, block_id - 2]
+                threading.Thread(target=record.delete_block, args=(record_id, block_id - 2,
+                                                                   block_id - 2)).start()
+
             block_id += 1
-
         logfile.close()
         print("===========Thread on {} ends===========".format(self.name))
 
@@ -149,13 +157,13 @@ def loadInit()->[]:
 
 def add_danmu(roomid, type):
     if type == "general":
-        DANMU_DICT[roomid][-1] += 1
+        DANMU_DICT[roomid] += 1
     elif type == "666":
-        TRIPLE_SIX_DICT[roomid][-1] += 1
+        TRIPLE_SIX_DICT[roomid] += 1
     elif type == "douyu":
-        DOUYU_DICT[roomid][-1] += 1
+        DOUYU_DICT[roomid] += 1
     else:
-        LUCKY_DICT[roomid][-1] += 1
+        LUCKY_DICT[roomid] += 1
 
 
 def update_audition(roomid, audition_num):
@@ -173,13 +181,13 @@ def room_is_online(room_id, name):
     # print("room:{} after requests time is:{}".format(room_id, time.ctime(time.time())))
     status = r.json()['data']['roominfo']['status']
     # TODO: Understand what does status 1 means
-    if status == OFFLINE_STATUS:
-        return False
-    else:
+    if status == ONLINE_STATUS and int(r.json()['data']['roominfo']['person_num']) > 100:
         return True
+    else:
+        return False
 
 
-def getChatInfo(roomid, name):
+def getChatInfo(roomid, name, osfile):
     print("===========getChatInfo on {} starts===========".format(name))
     try:
         f = urllib.request.urlopen(CHATINFOURL + roomid)
@@ -220,7 +228,7 @@ def getChatInfo(roomid, name):
                 recvMsg = s.recv(recvLen)   #ack:0
                 totalLen = int.from_bytes(s.recv(META_LEN), 'big')
                 try:
-                    analyse_msg(s, totalLen, roomid, name)
+                    analyse_msg(s, totalLen, roomid, name, osfile)
                 except Exception as e:
                     pass
     except Exception as e:
@@ -228,7 +236,7 @@ def getChatInfo(roomid, name):
     print("===========getChatInfo on {} ends===========".format(name))
 
 
-def analyse_msg(s, totalLen, roomid, name):
+def analyse_msg(s, totalLen, roomid, name, osfile):
     while totalLen > 0:
         s.recv(IGNORE_LEN)
         recvLen = int.from_bytes(s.recv(META_LEN), 'big')
@@ -236,11 +244,11 @@ def analyse_msg(s, totalLen, roomid, name):
         # recv the whole msg.
         while recvLen > len(recvMsg):
             recvMsg = b''.join(recvMsg, s.recv(recvLen - len(recvMsg)))
-        format_msg(recvMsg, roomid, name)
+        format_msg(recvMsg, roomid, name, osfile)
         totalLen = totalLen - IGNORE_LEN - META_LEN - recvLen
 
 
-def format_msg(recvMsg, roomid, name):
+def format_msg(recvMsg, roomid, name, osfile):
     try:
         jsonMsg = eval(recvMsg)
         content = jsonMsg['data']['content']
@@ -252,6 +260,7 @@ def format_msg(recvMsg, roomid, name):
                 if spIdentity == SP_MANAGER:
                     nickName = '*超管*' + nickName
             except Exception as e:
+                print(e)
                 pass
             if identity == MANAGER:
                 nickName = '*房管*' + nickName
@@ -262,6 +271,8 @@ def format_msg(recvMsg, roomid, name):
             if emoji:
                 content = emoji.group(1) + '*' + emoji.group(2) + '*' + emoji.group(3)
             print(name + "_" + nickName + ":" + content)
+            osfile.write(content + "\n")
+            osfile.flush()
             add_danmu(roomid, "general")
             if '666' in content:
                 add_danmu(roomid, "666")
@@ -270,7 +281,7 @@ def format_msg(recvMsg, roomid, name):
             elif '时刻' in content:
                 add_danmu(roomid, "douyu")
         elif jsonMsg['type'] == AUDIENCE_TYPE:
-            print('===========观众人数' + content + '==========')
+            print('==========={}\'s 观众人数'.format(name) + content + '==========')
             update_audition(roomid, content)
         else:
             pass
@@ -287,8 +298,11 @@ def main():
         for (id, name) in roomInfos:
             online_status = room_is_online(id, name)
             if not ONLINE_FLAGS[id] and online_status:
+                danmulog_filename = str(id) + "_" + name + "_Danmu" + ".txt"
+                logdir = os.path.expanduser(LOGFILEDIR)
+                f = open(logdir + danmulog_filename, 'a')
                 ONLINE_FLAGS[id] = True
-                threading.Thread(target=getChatInfo, args=(id, name)).start()
+                threading.Thread(target=getChatInfo, args=(id, name, f)).start()
                 DanmuThread(id, name).start()
                 print("{} goes online".format(name))
             elif ONLINE_FLAGS[id] and not online_status:
