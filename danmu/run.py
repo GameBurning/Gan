@@ -42,7 +42,7 @@ DOUYU_DICT = {}
 ONLINE_FLAGS = {}
 # LOCK = {}
 ANALYSIS_DURATION = 45
-THRESHOLD = 150
+THRESHOLD = 800
 MAIN_THREAD_SLEEP_TIME = 5
 
 
@@ -106,7 +106,17 @@ class DanmuThread(threading.Thread):
 
             print('{}\'s current block_id is {}'.format(self.name, block_id))
             if block_id >= 2:
-                if score_dict[-2] >= THRESHOLD:
+                if douyu[-2] > 0:
+                    output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
+                        .format(self.name, block_id - 2, block_id,
+                                score_dict[-2],
+                                lucky[-2],
+                                douyu[-2],
+                                triple_six[-2])
+                    threading.Thread(target=record.combine_block,
+                                     args=(record_id, block_id - 2, block_id, output_name)).start()
+
+                elif score_dict[-2] >= THRESHOLD:
                     '''
                     if combine_range == []:
                         combine_range = [block_id - 2, block_id]
@@ -133,6 +143,7 @@ class DanmuThread(threading.Thread):
 
                 threading.Thread(target=record.delete_block, args=(record_id, block_id - 2,
                                                                    block_id - 2)).start()
+
 
             block_id += 1
         logfile.close()
