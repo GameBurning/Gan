@@ -23,8 +23,6 @@ record_info = {}
 lock = threading.Lock()
 
 def split_video(source_file, cut_offset, dst1, dst2):
-    print("spliting video")
-
     command1 = "ffmpeg -y -i {} -vcodec copy -acodec copy -t {} {}".format(source_file, cut_offset, dst1)
     command2 = "ffmpeg -y -ss {} -i {} -vcodec copy -acodec copy {}".format(cut_offset, source_file, dst2)
 
@@ -37,7 +35,6 @@ def split_video(source_file, cut_offset, dst1, dst2):
 
 # offset    -1      keep whole video
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
-    print("..........starting process")
     if not os.path.exists(output_dir + "/"+record_id):
         record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "record with id :" + record_id +" not exists"}
         return -1, "no record exists"
@@ -184,9 +181,7 @@ def start():
     platform = request.form.get('platform', "")
     output_config = request.form.get('output_config', "")
 
-    print("room_id: " + str(room_id))
-    print("platform: " + str(platform))
-    print("output_config: " + str(output_config))
+    print("start recording\troom_id: " + str(room_id) + "\tplatform: " + str(platform) + "\toutput_config: " + str(output_config))
 
     block_size = 20
 
@@ -229,7 +224,7 @@ def start():
         "ffmpeg_process_handler" : None, \
         "processing_tasks" : {} \
     }
-    print("Assigned record_id : " + record_id)
+    # print("Assigned record_id : " + record_id)
 
     res = create_recording_thread(urls, "", record_id, block_size)
 
@@ -259,9 +254,9 @@ def create_recording_thread(urls, file_prefix, record_id, block_size):
             record_info[record_id]["block_size"] = block_size
             record_info[record_id]["thread"] = None
             lock.release()
-            return create_recording_thread(urls, file_prefix, record_id)
+            return create_recording_thread(urls, file_prefix, record_id, block_size)
         elif status == "recording":
-            print('record_info[record_id]["start_time"] : ' + str(start_time))
+            # print('record_info[record_id]["start_time"] : ' + str(start_time))
             break;
         time.sleep(1)
 
@@ -269,9 +264,8 @@ def create_recording_thread(urls, file_prefix, record_id, block_size):
 
 @app.route('/stop', methods=['POST'])
 def stop():
-    print("stop recording......")
     record_id = request.form.get('record_id', -1)
-    print("record_id: " + str(record_id))
+    print("stop recording......" + "record_id: " + str(record_id))
 
     if record_id == -1:
         return jsonify({"code": 1, "info" : "need record_id"}), 200
@@ -316,12 +310,14 @@ def delete():
         return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
     if record_id == -1:
+        print("need record_id")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     for i in range(int(start_block_id), int(end_block_id)+1):
         try:
             os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
         except Exception as e:
+            print("delete Error")
             print(str(e))
 
     return jsonify({"code": 0, "info" : "deleted"}), 200
