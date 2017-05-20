@@ -67,7 +67,7 @@ class DanmuThread(threading.Thread):
         douyu = []
         triple_six = []
         score_dict = []
-        #delete_range = [0, 0]
+        delete_range = []
         combine_range = []
         audition = []
         block_id = 0
@@ -105,46 +105,17 @@ class DanmuThread(threading.Thread):
             score_dict.append(block_score)
 
             print('{}\'s current block_id is {}'.format(self.name, block_id))
-            if block_id >= 2:
-                if douyu[-2] > 0:
-                    output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
-                        .format(self.name, block_id - 2, block_id,
+            if block_id >= 3:
+                if douyu[-2] > 1 or score_dict[-2] >= THRESHOLD:
+                    output_name = '{}_douyu{}_block{}to{}_score{}_lucky{}_triple{}' \
+                        .format(self.name, douyu[-2], block_id - 3, block_id,
                                 score_dict[-2],
                                 lucky[-2],
-                                douyu[-2],
                                 triple_six[-2])
                     threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 2, block_id, output_name)).start()
-
-                elif score_dict[-2] >= THRESHOLD:
-                    '''
-                    if combine_range == []:
-                        combine_range = [block_id - 2, block_id]
-                    elif combine_range != [] and combine_range[1] == block_id - 1:
-                        combine_range[1] = block_id
-                    else:
-                        output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
-                            .format(self.name, combine_range[0], combine_range[1],
-                                    score_dict[combine_range[0] + 1],
-                                    lucky[combine_range[0] + 1],
-                                    douyu[combine_range[0] + 1],
-                                    triple_six[combine_range[0] + 1])
-                        threading.Thread(target=record.combine_block,
-                                         args=(record_id, combine_range[0], combine_range[1], output_name)).start()
-                    '''
-                    output_name = '{}_block{}to{}_score{}_lucky{}_douyu{}_triple{}' \
-                        .format(self.name, block_id - 2, block_id,
-                                score_dict[-2],
-                                lucky[-2],
-                                douyu[-2],
-                                triple_six[-2])
-                    threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 2, block_id, output_name)).start()
-
-                threading.Thread(target=record.delete_block, args=(record_id, block_id - 2,
-                                                                   block_id - 2)).start()
-
-
+                                     args=(record_id, block_id - 3, block_id, output_name)).start()
+                threading.Thread(target=record.delete_block, args=(record_id, block_id - 3,
+                                                                   block_id - 3)).start()
             block_id += 1
         logfile.close()
         print("===========Thread on {} ends===========".format(self.name))
