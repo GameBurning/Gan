@@ -8,8 +8,8 @@ import os
 import platform
 import re
 import requests
-#import Danmu.python.record as record
-import record
+import danmu.python.record as record
+#import record
 
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
@@ -40,6 +40,7 @@ LUCKY_DICT = {}
 AUDITION_DICT = {}
 DOUYU_DICT = {}
 ONLINE_FLAGS = {}
+RECORD_ID_DICT = {}
 # LOCK = {}
 ANALYSIS_DURATION = 45
 THRESHOLD = 800
@@ -59,7 +60,9 @@ class DanmuThread(threading.Thread):
             start_time = int(start_time)
         except Exception as e:
             print(e)
+            print("{} has error and return".format(self.name))
             return
+        RECORD_ID_DICT[self.roomID] = record_id
         statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
         logdir = os.path.expanduser(LOGFILEDIR)
         danmu = []
@@ -161,7 +164,11 @@ def room_is_online(room_id, name):
         print(name + " timeout")
         return False
     # print("room:{} after requests time is:{}".format(room_id, time.ctime(time.time())))
-    status = r.json()['data']['roominfo']['status']
+    try:
+        status = r.json()['data']['roominfo']['status']
+    except:
+        print("{} can not get room info: {}".format(name, r.json()))
+        return False
     # TODO: Understand what does status 1 means
     if status == ONLINE_STATUS and int(r.json()['data']['roominfo']['person_num']) > 100:
         return True
@@ -288,6 +295,8 @@ def main():
                 DanmuThread(id, name).start()
                 print("{} goes online".format(name))
             elif ONLINE_FLAGS[id] and not online_status:
+                if id in RECORD_ID_DICT.keys():
+                    record.stop_record(RECORD_ID_DICT[id])
                 ONLINE_FLAGS[id] = False
                 print("{} goes offline".format(name))
         time.sleep(MAIN_THREAD_SLEEP_TIME)
