@@ -8,8 +8,8 @@ import os
 import platform
 import re
 import requests
-import danmu.python.record as record
-#import record
+#import danmu.python.record as record
+import record
 
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
