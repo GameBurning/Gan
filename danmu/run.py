@@ -60,6 +60,7 @@ class DanmuThread(threading.Thread):
             start_time = int(start_time)
         except Exception as e:
             print(e)
+            ONLINE_FLAGS[self.id] == False
             print("{} has error and return".format(self.name))
             return
         RECORD_ID_DICT[self.roomID] = record_id
@@ -117,7 +118,9 @@ class DanmuThread(threading.Thread):
                                 triple_six[-2])
                     threading.Thread(target=record.combine_block,
                                      args=(record_id, block_id - 3, block_id, output_name)).start()
-                threading.Thread(target=record.delete_block, args=(record_id, block_id - 3,
+                if douyu[-3] <= 1 and score_dict[-3] < THRESHOLD:
+                    # save the clip but not combine it in case of use
+                    threading.Thread(target=record.delete_block, args=(record_id, block_id - 3,
                                                                    block_id - 3)).start()
             block_id += 1
         logfile.close()
