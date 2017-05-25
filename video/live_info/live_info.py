@@ -7,6 +7,53 @@ import re
 def get_stream_zhanqi(room_id):
     return []
 
+def get_stream_douyu(room_id):
+    stream_urls = []
+    try:
+        r = requests.get("http://m.douyu.com/html5/live?roomId={}".format(room_id), timeout=3)
+    except:
+        return []
+    if r.status_code != 200:
+        return []
+
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(r.text)
+    data = json.loads(r.text)['data']
+    server_status = data.get('error',0)
+    if server_status is not 0:
+        raise ValueError("Server returned error:%s" % server_status)
+
+    title = data.get('room_name')
+    show_status = data.get('show_status')
+    print("show_status : " + show_status)
+    if show_status is not "1":
+        raise ValueError("The live stream is not online! (Errno:%s)" % server_status)
+
+    tt = int(time.time())
+    sign_content = 'lapi/live/thirdPart/getPlay/{}?aid=pcclient&rate=0&time={}9TUk5fjjUjg9qIMH3sdnh'.format(room_id, tt)
+    sign = hashlib.md5(sign_content.encode('ascii')).hexdigest()
+
+    json_request_url = "http://coapi.douyucdn.cn/lapi/live/thirdPart/getPlay/{}?rate=0".format(room_id)
+    headers = {'auth': sign, 'time': str(tt), 'aid': 'pcclient'}
+
+    try:
+        r = requests.get(json_request_url,  headers = headers, timeout=3)
+    except:
+        return []
+    if r.status_code != 200:
+        return []
+    data = json.loads(r.text)['data']
+    server_status = data.get('error',0)
+
+    if server_status is not 0:
+        raise ValueError("Server returned error:%s" % server_status)
+
+    real_url = data.get('live_url')
+    stream_urls.append(real_url)
+    print("........... urls : " + str(stream_urls))
+
+    return stream_urls
+
 def get_stream_panda(room_id):
     stream_urls = []
     plflag = None
@@ -17,7 +64,6 @@ def get_stream_panda(room_id):
     room_start_time = None
     room_status = None
     video_id = None
-
     try:
         r = requests.get("http://www.panda.tv/api_room_v3?roomid={}&__plat=pc_web&_={}".format(room_id, int(time.time())), timeout=3)
     except:
@@ -80,6 +126,7 @@ def get_stream_panda(room_id):
 
 live_info_store = {
     "panda" : { "stream_url_func" : get_stream_panda },
+    "douyu" : { "stream_url_func" : get_stream_douyu },
     "zhanqi" : { "stream_url_func" : get_stream_zhanqi }
 }
 

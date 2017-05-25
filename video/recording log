@@ -1,0 +1,13 @@
+POST /start		room_id:66666	platform:panda	output_config:{"block_size" : 15}
+POST /stop		record_id:panda_66666_1495695382
+POST /stop		record_id:panda_66666_1495695382
+/stop		returned
+POST /stop		record_id:panda_66666_1495695382
+/stop		returned
+POST /start		room_id:66666	platform:panda	output_config:{"block_size" : 15}
+POST /delete		record_id:panda_66666_1495695409	start_block_id:0	end_block_id:1
+/delete		returned
+POST /process		record_id:panda_66666_1495695409	start_block_id:2	end_block_id:3	start_block_offset:0	end_block_offset:-1
+/process		returned
+POST /process		record_id:panda_66666_1495695409	start_block_id:4	end_block_id:6	start_block_offset:0	end_block_offset:-1
+/process		returned
