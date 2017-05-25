@@ -11,8 +11,8 @@ def start_record(roomid, platform='panda', block_size = 30):
         return (-1, -1)
 
 
-def stop_record(roomid):
-    r = requests.post('http://127.0.0.1:5002/start', data={"room_id": roomid})
+def stop_record(record_id):
+    r = requests.post('http://127.0.0.1:5002/stop', data={"record_id": record_id})
     if r.json()['code'] == 0:
         print("roomid's start succeeds")
         return True
