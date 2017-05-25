@@ -20,9 +20,10 @@ app = Flask(__name__)
 log_file = open("recording log", "w")
 
 output_dir = "output"
-room_platform_to_record_id = {}
 record_info = {}
 lock = threading.Lock()
+
+range_to_combined_hashtable = {}
 
 def split_video(source_file, cut_offset, dst1, dst2):
     command1 = "ffmpeg -y -i {} -vcodec copy -acodec copy -t {} {}".format(source_file, cut_offset, dst1)
@@ -38,24 +39,16 @@ def split_video(source_file, cut_offset, dst1, dst2):
 # offset    -1      keep whole video
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     if not os.path.exists(output_dir + "/"+record_id):
-        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "record with id :" + record_id +" not exists"}
         return -1, "no record exists"
     if not os.path.exists(output_dir + "/"+"process_results"):
         os.makedirs(output_dir + "/"+"process_results")
 
-    output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
+    output_file_name = output_dir + "/"+ "process_results/" + name + ".mov"
     start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
     end_file_name = output_dir + "/"+ record_id + "/"+ str(end_block_id) + ".flv"
-    list_file_name = output_dir + "/"+ record_id + "/"+ name + ".txt"
-
-    lock.acquire()
-    record_info[record_id]["processing_tasks"][name]["status"] = "running"
-    lock.release()
+    list_file_name = output_dir + "/"+ record_id + "/"+ name + "_" + str(int(time.time()))+ ".txt"
 
     if start_block_id > end_block_id:
-        lock.acquire()
-        record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : "start_block_id should smaller or equal to end_block_id"}
-        lock.release()
         return -1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
         command = "ffmpeg -y  -ss {} -i {} -t {} -vcodec copy -acodec copy {}".format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
@@ -99,42 +92,9 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-    # Poll process for new output until finished
-    while True:
-        nextline = process.stdout.readline().decode("utf-8")
-        sys.stdout.write(nextline)
-        sys.stdout.flush()
-
-        if nextline == '' and process.poll() is not None:
-            print("..........concatenate finished")
-            try:
-                os.remove(list_file_name)
-            except OSError:
-                pass
-            lock.acquire()
-            record_info[record_id]["processing_tasks"][name] = {"status" : "finished"}
-            lock.release()
-            break
-
-        if "Press [q] to stop" in nextline:
-            print("..........starting concatenating video")
-
-        if "Impossible" in nextline:
-            print("..........error in concatenating" + nextline)
-            try:
-                os.remove(output_file_name)
-            except OSError:
-                pass
-
-            try:
-                os.remove(list_file_name)
-            except OSError:
-                pass
-
-            lock.acquire()
-            record_info[record_id]["processing_tasks"][name] = {"status" : "error", "info" : nextline}
-            lock.release()
-            break
+    process.wait()
+    os.remove(list_file_name)
+    print("Finished processing......\n")
 
     return None
 
@@ -155,7 +115,7 @@ def start_download(url, file_prefix , record_id, block_size):
 
         if nextline == '' and process.poll() is not None:
             lock.acquire()
-            record_info[record_id]["status"] = "ready"
+            record_info[record_id]["status"] = "error"
             record_info[record_id]["ffmpeg_process_handler"] = None
             lock.release()
             break
@@ -214,23 +174,14 @@ def start():
         log_file.write("/start\t\treturned\n")
         return jsonify({"code": 1, "info" : "cannot get streaming url"}), 200
 
-    tmp_name = str(room_id) + str(platform)
-    if tmp_name in room_platform_to_record_id and record_info[room_platform_to_record_id[tmp_name]]["status"] == "recording":
-        print("Already started")
-        log_file.write("/start\t\treturned\n")
-        return jsonify({"code": 1, "info" : "already started"}), 200
-
     record_id = str(platform) + "_" + str(room_id) + "_" + str(int(time.time()))
-    room_platform_to_record_id[str(room_id) + str(platform)] = record_id
     # status: ready, error, recording
     record_info[record_id] = { \
         "start_time" : "", \
         "status" : "ready", \
         "thread": None, \
-        "ffmpeg_process_handler" : None, \
-        "processing_tasks" : {} \
+        "ffmpeg_process_handler" : None \
     }
-    # print("Assigned record_id : " + record_id)
 
     res = create_recording_thread(urls, "", record_id, block_size)
 
@@ -277,23 +228,21 @@ def stop():
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
-    if (record_id not in record_info) or record_info[record_id]["status"] != "recording":
-        lock.release()
-        return jsonify({"code": 1, "info" : "Already stopped"}), 200
+    if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None:
+        os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
+        for i in range(6):
+            time.sleep(0.5)
+            if record_info[record_id]["ffmpeg_process_handler"].poll() is not None:
+                print("stop successfully\n")
+                record_info[record_id]["status"] = "ready"
+                record_info[record_id]["ffmpeg_process_handler"] = None
+                sys.stdout.flush()
+                lock.release()
+                return jsonify({"code": 0, "info" : "stopped"}), 200
 
-    # record_info[record_id]["ffmpeg_process_handler"].kill()
-    os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
-    for i in range(6):
-        time.sleep(0.5)
-        if record_info[record_id]["ffmpeg_process_handler"].poll() is not None:
-            record_info[record_id]["status"] = "ready"
-            record_info[record_id]["ffmpeg_process_handler"] = None
-            sys.stdout.flush()
-            lock.release()
-            return jsonify({"code": 0, "info" : "stopped"}), 200
     lock.release()
     log_file.write("/stop\t\treturned\n")
-    return jsonify({"code": 1, "info" : "stop failed"}), 200
+    return jsonify({"code": 1, "info" : "stop failed or already stopped"}), 200
 
 
 @app.route('/delete', methods=['POST'])
@@ -330,11 +279,7 @@ def delete():
         try:
             os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
         except Exception as e:
-            log_file.write("ERROR /delete\t\t delete Error: " + str(e) + "\n")
-            print("delete Error")
-            print(str(e))
-            log_file.write("/delete\t\treturned\n")
-            return jsonify({"code":1,"info":"delete Error"}), 200
+            pass
 
     log_file.write("/delete\t\treturned\n")
     return jsonify({"code": 0, "info" : "deleted"}), 200
@@ -366,39 +311,20 @@ def process():
         log_file.write("/process\t\treturned\n")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
-    # start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset)
-    lock.acquire()
-    if record_id not in record_info:
-        record_info[record_id] = { \
-            "start_time" : "", \
-            "status" : "ready", \
-            "thread": None, \
-            "ffmpeg_process_handler" : None, \
-            "processing_tasks" : { name : {"status" : "", "info" : ""} } \
-        }
-    else:
-        record_info[record_id]["processing_tasks"][name] = {"status" : "", "info" : ""}
-    lock.release()
-
     t = threading.Thread(target=start_process, args=[record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset])
     t.start()
 
-    for i in range(10):
-        time.sleep(1)
-
-        lock.acquire()
-        process_task = copy.deepcopy( record_info[record_id]["processing_tasks"][name] )
-        lock.release()
-
-        if process_task["status"] == "error":
-            log_file.write("/process\t\treturned\n")
-            return jsonify({"code": 1, "info" : process_task["info"]}), 200
-        elif process_task["status"] == "finished":
-            log_file.write("/process\t\treturned\n")
-            return jsonify({"code": 0, "info" : "finished"}), 200
-
     log_file.write("/process\t\treturned\n")
-    return jsonify({"code": 1, "info" : "time out"}), 200
+    return jsonify({"code": 0, "info" : "finished"}), 200
+
+@app.route('/debug', methods=['POST'])
+def debug():
+    for k in record_info:
+        if "ffmpeg_process_handler" in record_info[k] and record_info[k]["ffmpeg_process_handler"] != None:
+            record_info[k]["ffmpeg PID"] = record_info[k]["ffmpeg_process_handler"].pid
+        else:
+            record_info[k].pop('ffmpeg PID', None)
+    return jsonify({"record_info":str(record_info)}), 200
 
 def main():
     if not os.path.exists(output_dir):
