@@ -298,8 +298,11 @@ def main():
                 DanmuThread(id, name).start()
                 print("{} goes online".format(name))
             elif ONLINE_FLAGS[id] and not online_status:
-                if id in RECORD_ID_DICT.keys():
-                    record.stop_record(RECORD_ID_DICT[id])
+                if RECORD_ID_DICT.get(id, None) is not None:
+                    stop_success = record.stop_record(RECORD_ID_DICT[id])
+                    if stop_success is False:
+                        continue
+                    RECORD_ID_DICT[id] = None
                 ONLINE_FLAGS[id] = False
                 print("{} goes offline".format(name))
         time.sleep(MAIN_THREAD_SLEEP_TIME)
