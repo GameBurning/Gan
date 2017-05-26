@@ -60,7 +60,7 @@ class DanmuThread(threading.Thread):
         f.write("===========DanmuThread on {} starts===========\n".format(self.name))
         try:
             m = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
-            f.write("m is {}".format(m))
+            f.write("m is {}\n".format(m))
             (record_id, start_time) = m
             start_time = int(start_time)
         except Exception as e:
