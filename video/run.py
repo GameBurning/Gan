@@ -225,6 +225,7 @@ def stop():
     print("stop recording......" + "record_id: " + str(record_id))
     log_file.write("POST /stop\t\trecord_id:{}\n".format(record_id))
     if record_id == -1:
+        log_file.write("POST /stop\t\treturned, no record_id\n")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
@@ -236,12 +237,13 @@ def stop():
                 print("stop successfully\n")
                 record_info[record_id]["status"] = "ready"
                 record_info[record_id]["ffmpeg_process_handler"] = None
+                log_file.write("POST /stop\t\treturned, successfully\n")
                 sys.stdout.flush()
                 lock.release()
                 return jsonify({"code": 0, "info" : "stopped"}), 200
 
     lock.release()
-    log_file.write("/stop\t\treturned\n")
+    log_file.write("/stop\t\treturned time out\n")
     return jsonify({"code": 1, "info" : "stop failed or already stopped"}), 200
 
 
