@@ -1,9 +1,13 @@
 import requests
+import time
 
 
 def start_record(roomid, platform='panda', block_size=30, port=5002):
     para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
     r = requests.post('http://127.0.0.1:{}/start'.format(port), data=para)
+    f = open('danmu_log', 'a')
+    f.write('{}: {}'.format(time.ctime(time.time())), r.json())
+    f.close()
     if r.json()['code'] == 0:
         print(r.json())
         return r.json()['info']['record_id'], r.json()['info']['start_time']
@@ -14,6 +18,9 @@ def start_record(roomid, platform='panda', block_size=30, port=5002):
 
 def stop_record(record_id, port=5002):
     r = requests.post('http://127.0.0.1:{}/stop'.format(port), data={"record_id": record_id})
+    f = open('danmu_log', 'a')
+    f.write('{}: {}'.format(time.ctime(time.time())), r.json())
+    f.close()
     if r.json()['code'] == 0:
         print("{} stop succeeds".format(record_id))
         return True
@@ -27,6 +34,9 @@ def delete_block(record_id, start_id, end_id, port=5002):
     para = {'record_id': record_id, "start_block_id": start_id,\
             "end_block_id": end_id}
     r = requests.post('http://127.0.0.1:5002/delete'.format(port), data = para)
+    f = open('danmu_log', 'a')
+    f.write('{}: {}'.format(time.ctime(time.time())), r.json())
+    f.close()
     print(r.json()['info'])
     if r.json()['code'] == 0:
         print("delete successful")
@@ -42,6 +52,9 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
             'end_block_id': end_id, 'start_block_offset': -1,\
             "end_block_offset": -1}
     r = requests.post('http://127.0.0.1:{}/process'.format(port), data=para)
+    f = open('danmu_log', 'a')
+    f.write('{}: {}'.format(time.ctime(time.time())), r.json())
+    f.close()
     print(r.json()['info'])
     if r.json()['code'] == 0:
         print("{}'s combination succeed".format(name))

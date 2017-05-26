@@ -10,6 +10,7 @@ import re
 import requests
 #import danmu.python.record as record
 import record
+import danmu
 
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
@@ -55,6 +56,8 @@ class DanmuThread(threading.Thread):
 
     def run(self):
         print("===========DanmuThread on {} starts===========".format(self.name))
+        f = open('danmu_log', 'a')
+        f.write("===========DanmuThread on {} starts===========".format(self.name))
         try:
             (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
             start_time = int(start_time)
@@ -125,6 +128,8 @@ class DanmuThread(threading.Thread):
             block_id += 1
         logfile.close()
         print("===========Thread on {} ends===========".format(self.name))
+        f.write("===========DanmuThread on {} ends===========".format(self.name))
+        f.close()
 
 
 def loadInit()->[]:
@@ -181,6 +186,8 @@ def room_is_online(room_id, name):
 
 def getChatInfo(roomid, name, osfile):
     print("===========getChatInfo on {} starts===========".format(name))
+    f = open('danmu_log', 'a')
+    f.write("===========getChatInfo on {} starts===========".format(name))
     try:
         f = urllib.request.urlopen(CHATINFOURL + roomid)
         data = f.read().decode('utf-8')
@@ -226,6 +233,8 @@ def getChatInfo(roomid, name, osfile):
     except Exception as e:
         print(e)
     print("===========getChatInfo on {} ends===========".format(name))
+    f.write("===========getChatInfo on {} ends===========".format(name))
+    f.close()
 
 
 def analyse_msg(s, totalLen, roomid, name, osfile):
@@ -284,6 +293,8 @@ def format_msg(recvMsg, roomid, name, osfile):
 
 def main():
     roomInfos = loadInit()
+    f = open('danmu_log','w')
+    f.write('Log start\n')
     # for (id, name) in roomInfos:
     #     LOCK[id] = threading.Lock()
     while True:
@@ -297,6 +308,7 @@ def main():
                 threading.Thread(target=getChatInfo, args=(id, name, f)).start()
                 DanmuThread(id, name).start()
                 print("{} goes online".format(name))
+                f.write("{} goes online".format(name))
             elif ONLINE_FLAGS[id] and not online_status:
                 if RECORD_ID_DICT.get(id, None) is not None:
                     stop_success = record.stop_record(RECORD_ID_DICT[id])
@@ -305,7 +317,9 @@ def main():
                     RECORD_ID_DICT[id] = None
                 ONLINE_FLAGS[id] = False
                 print("{} goes offline".format(name))
+                f.write("{} goes offline".format(name))
         time.sleep(MAIN_THREAD_SLEEP_TIME)
+        f.flush()
 
 
 if __name__ == '__main__':
