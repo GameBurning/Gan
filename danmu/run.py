@@ -189,8 +189,8 @@ def getChatInfo(roomid, name, osfile):
     f = open('danmu_log', 'a')
     f.write("===========getChatInfo on {} starts===========\n".format(name))
     try:
-        f = urllib.request.urlopen(CHATINFOURL + roomid)
-        data = f.read().decode('utf-8')
+        u = urllib.request.urlopen(CHATINFOURL + roomid)
+        data = u.read().decode('utf-8')
         chatInfo = json.loads(data)
         chatAddr = chatInfo['data']['chat_addr_list'][0]
         socketIP = chatAddr.split(':')[0]
