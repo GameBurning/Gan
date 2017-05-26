@@ -59,12 +59,14 @@ class DanmuThread(threading.Thread):
         f = open('danmu_log', 'a')
         f.write("===========DanmuThread on {} starts===========\n".format(self.name))
         try:
-            (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
+            m = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
+            f.write("m is {}".format(m))
+            (record_id, start_time) = m
             start_time = int(start_time)
         except Exception as e:
             print(e)
             ONLINE_FLAGS[self.roomID] = False
-            print("{} has error and return".format(self.name))
+            print("{}'s starting has error and return".format(self.name))
             return
         RECORD_ID_DICT[self.roomID] = record_id
         statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
