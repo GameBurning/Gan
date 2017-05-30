@@ -3,6 +3,7 @@ import time
 import requests
 import pprint
 import re
+import hashlib
 
 def get_stream_zhanqi(room_id):
     return []
@@ -18,6 +19,8 @@ def get_stream_douyu(room_id):
 
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(r.text)
+    if 'data' not in json.loads(r.text):
+        return stream_urls
     data = json.loads(r.text)['data']
     server_status = data.get('error',0)
     if server_status is not 0:
