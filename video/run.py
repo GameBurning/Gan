@@ -26,8 +26,8 @@ lock = threading.Lock()
 range_to_combined_hashtable = {}
 
 def split_video(source_file, cut_offset, dst1, dst2):
-    command1 = "ffmpeg -y -i {} -vcodec copy -acodec copy -t {} {}".format(source_file, cut_offset, dst1)
-    command2 = "ffmpeg -y -ss {} -i {} -vcodec copy -acodec copy {}".format(cut_offset, source_file, dst2)
+    command1 = 'ffmpeg -y -i "{}" -vcodec copy -acodec copy -t {} "{}"'.format(source_file, cut_offset, dst1)
+    command2 = 'ffmpeg -y -ss {} -i "{}" -vcodec copy -acodec copy "{}"'.format(cut_offset, source_file, dst2)
 
     process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -51,7 +51,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     if start_block_id > end_block_id:
         return -1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
-        command = "ffmpeg -y  -ss {} -i {} -t {} -vcodec copy -acodec copy {}".format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
+        command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
     else:
         list_file = open(list_file_name, "w")
 
@@ -101,7 +101,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 def start_download(url, file_prefix , record_id, block_size):
     if not os.path.exists(output_dir + "/"+record_id):
         os.makedirs(output_dir + "/"+record_id)
-    command = "ffmpeg -y -i " + url +" -c copy -f segment -segment_time " + str(block_size) + " -reset_timestamps 1 "+ output_dir +"/"+record_id+"/"+ file_prefix +"%d.flv"
+    command = 'ffmpeg -y -i "' + url +'" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "'+ output_dir +"/"+record_id+"/"+ file_prefix +'%d.flv"'
+    print("ffmpeg command : {}\n".format(command))
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     process = record_info[record_id]["ffmpeg_process_handler"]
@@ -210,6 +211,7 @@ def create_recording_thread(urls, file_prefix, record_id, block_size):
     t.start()
 
     while(True):
+
         lock.acquire()
         status = record_info[record_id]["status"]
         start_time = record_info[record_id]["start_time"]
