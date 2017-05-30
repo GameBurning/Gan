@@ -5,5 +5,5 @@ py3env
 .ropeproject
 .idea/
 output/
-./video/recording log
-./video/recording_log.txt
+video/recording log
+video/recording_log.txt
