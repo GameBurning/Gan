@@ -10,9 +10,8 @@ import re
 import requests
 #import danmu.python.record as record
 import record
-import danmu
 
-
+PORT = 5003
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
 CHATROOMAPI = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
 LOGFILEDIR = '~/pandaLog/'
@@ -28,7 +27,7 @@ BAMBOO_TYPE = '206'
 AUDIENCE_TYPE = '207'
 TU_HAO_TYPE = '306'
 SYSINFO = platform.system()
-INIT_PROPERTIES = 'init.properties'
+INIT_PROPERTIES = 'init2.properties'
 MANAGER = '60'
 SP_MANAGER = '120'
 HOSTER = '90'
@@ -44,7 +43,7 @@ ONLINE_FLAGS = {}
 RECORD_ID_DICT = {}
 # LOCK = {}
 ANALYSIS_DURATION = 45
-THRESHOLD = 800
+THRESHOLD = 600
 MAIN_THREAD_SLEEP_TIME = 5
 
 
@@ -56,17 +55,13 @@ class DanmuThread(threading.Thread):
 
     def run(self):
         print("===========DanmuThread on {} starts===========".format(self.name))
-        f = open('danmu_log', 'a')
-        f.write("===========DanmuThread on {} starts===========\n".format(self.name))
         try:
-            m = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
-            f.write("m is {}\n".format(m))
-            (record_id, start_time) = m
+            (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION, port=PORT)
             start_time = int(start_time)
         except Exception as e:
             print(e)
-            ONLINE_FLAGS[self.roomID] = False
-            print("{}'s starting has error and return".format(self.name))
+            ONLINE_FLAGS[self.id] == False
+            print("{} has error and return".format(self.name))
             return
         RECORD_ID_DICT[self.roomID] = record_id
         statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
@@ -122,16 +117,14 @@ class DanmuThread(threading.Thread):
                                 lucky[-2],
                                 triple_six[-2])
                     threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 3, block_id, output_name)).start()
+                                     args=(record_id, block_id - 3, block_id, output_name, PORT)).start()
                 if douyu[-3] <= 1 and score_dict[-3] < THRESHOLD:
                     # save the clip but not combine it in case of use
                     threading.Thread(target=record.delete_block, args=(record_id, block_id - 3,
-                                                                   block_id - 3)).start()
+                                                                   block_id - 3, PORT)).start()
             block_id += 1
         logfile.close()
         print("===========Thread on {} ends===========".format(self.name))
-        f.write("===========DanmuThread on {} ends===========\n".format(self.name))
-        f.close()
 
 
 def loadInit()->[]:
@@ -188,11 +181,9 @@ def room_is_online(room_id, name):
 
 def getChatInfo(roomid, name, osfile):
     print("===========getChatInfo on {} starts===========".format(name))
-    f = open('danmu_log', 'a')
-    f.write("===========getChatInfo on {} starts===========\n".format(name))
     try:
-        u = urllib.request.urlopen(CHATINFOURL + roomid)
-        data = u.read().decode('utf-8')
+        f = urllib.request.urlopen(CHATINFOURL + roomid)
+        data = f.read().decode('utf-8')
         chatInfo = json.loads(data)
         chatAddr = chatInfo['data']['chat_addr_list'][0]
         socketIP = chatAddr.split(':')[0]
@@ -235,8 +226,6 @@ def getChatInfo(roomid, name, osfile):
     except Exception as e:
         print(e)
     print("===========getChatInfo on {} ends===========".format(name))
-    f.write("===========getChatInfo on {} ends===========\n".format(name))
-    f.close()
 
 
 def analyse_msg(s, totalLen, roomid, name, osfile):
@@ -281,7 +270,7 @@ def format_msg(recvMsg, roomid, name, osfile):
                 add_danmu(roomid, "666")
             elif '学不来' in content or '狗' in content:
                 add_danmu(roomid, "lucky")
-            elif '时刻' in content:
+            elif '时刻' in content or '天天卡牌' in content or '闭嘴' in content or 'ttkp' in content:
                 add_danmu(roomid, "douyu")
         elif jsonMsg['type'] == AUDIENCE_TYPE:
             print('==========={}\'s 观众人数'.format(name) + content + '==========')
@@ -295,8 +284,6 @@ def format_msg(recvMsg, roomid, name, osfile):
 
 def main():
     roomInfos = loadInit()
-    f = open('danmu_log','w')
-    f.write('Log start\n')
     # for (id, name) in roomInfos:
     #     LOCK[id] = threading.Lock()
     while True:
@@ -310,18 +297,12 @@ def main():
                 threading.Thread(target=getChatInfo, args=(id, name, f)).start()
                 DanmuThread(id, name).start()
                 print("{} goes online".format(name))
-                f.write("{} goes online\n".format(name))
             elif ONLINE_FLAGS[id] and not online_status:
-                if RECORD_ID_DICT.get(id, None) is not None:
-                    stop_success = record.stop_record(RECORD_ID_DICT[id])
-                    if stop_success is False:
-                        continue
-                    RECORD_ID_DICT[id] = None
+               # if id in RECORD_ID_DICT.keys():
+               #     record.stop_record(RECORD_ID_DICT[id], PORT)
                 ONLINE_FLAGS[id] = False
                 print("{} goes offline".format(name))
-                f.write("{} goes offline\n".format(name))
         time.sleep(MAIN_THREAD_SLEEP_TIME)
-        f.flush()
 
 
 if __name__ == '__main__':
