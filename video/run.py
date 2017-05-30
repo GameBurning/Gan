@@ -10,19 +10,19 @@ import time
 import os
 import json
 import signal
-import copy
 
 if str(sys.version_info[0]) != "3":
     raise "Please Use Python _3_ !!!"
 
 app = Flask(__name__)
 
-log_file = open("recording log", "w")
+log_file = open("recording_log.txt", "w")
+log_file.write("$Process Started at : {}\n".format(time.ctime()))
+print("Process Started at : {}\n".format(time.ctime()))
 
 output_dir = "output"
 record_info = {}
 lock = threading.Lock()
-
 range_to_combined_hashtable = {}
 
 def split_video(source_file, cut_offset, dst1, dst2):
@@ -137,12 +137,24 @@ def start_download(url, file_prefix , record_id, block_size):
 
     return None
 
+@app.after_request
+def after(response):
+    log_file.write("time={};type=RESPONSE;method={};url={};status={};response={}\n".format(time.ctime(),request.method,request.base_url,response.status, response.data))
+    print("RESPONSE\tmethod={};url={};status={};response={}".format(request.method,request.base_url,response.status, response.data))
+    return response
+
+@app.before_request
+def before():
+    log_file.write("time={};type=REQUEST；method={};url={};form={}\n".format(time.ctime(),request.method,request.base_url,request.form))
+    print("REQUEST\tmethod={};url={};form={}\n".format(request.method,request.base_url,request.form))
+    pass
+
 @app.route('/start', methods=['POST'])
 def start():
     room_id = request.form.get('room_id', -1)
     platform = request.form.get('platform', "")
     output_config = request.form.get('output_config', "")
-    log_file.write("POST /start\t\troom_id:{}\tplatform:{}\toutput_config:{}\n".format(room_id,platform,output_config))
+    log_file.write("$POST /start\t\troom_id:{}\tplatform:{}\toutput_config:{}\n".format(room_id,platform,output_config))
     print("start recording\troom_id: " + str(room_id) + "\tplatform: " + str(platform) + "\toutput_config: " + str(output_config))
 
     block_size = 20
@@ -159,19 +171,19 @@ def start():
 
     if room_id == -1:
         print("Need room_id")
-        log_file.write("/start\t\treturned\n")
+        log_file.write("$/start\t\treturned\n")
         return jsonify({"code": 1, "info" : "need room_id"}), 200
 
     if platform not in live_info_store:
         print("Platform " + str(platform) + " not in list : " + str(live_info_store))
-        log_file.write("/start\t\treturned\n")
+        log_file.write("$/start\t\treturned\n")
         return jsonify({"code": 1, "info" : "platform " + str(platform) + " not in list : " + ', '.join(live_info_store.keys())}), 200
 
     urls = get_stream_url(platform, room_id)
 
     if not urls:
         print("cannot get streaming url")
-        log_file.write("/start\t\treturned\n")
+        log_file.write("$/start\t\treturned\n")
         return jsonify({"code": 1, "info" : "cannot get streaming url"}), 200
 
     record_id = str(platform) + "_" + str(room_id) + "_" + str(int(time.time()))
@@ -223,9 +235,9 @@ def create_recording_thread(urls, file_prefix, record_id, block_size):
 def stop():
     record_id = request.form.get('record_id', -1)
     print("stop recording......" + "record_id: " + str(record_id))
-    log_file.write("POST /stop\t\trecord_id:{}\n".format(record_id))
+    log_file.write("$POST /stop\t\trecord_id:{}\n".format(record_id))
     if record_id == -1:
-        log_file.write("POST /stop\t\treturned, no record_id\n")
+        log_file.write("$POST /stop\t\treturned, no record_id\n")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
@@ -237,14 +249,19 @@ def stop():
                 print("stop successfully\n")
                 record_info[record_id]["status"] = "ready"
                 record_info[record_id]["ffmpeg_process_handler"] = None
-                log_file.write("POST /stop\t\treturned, successfully\n")
+                log_file.write("$POST /stop\t\treturned, successfully\n")
                 sys.stdout.flush()
                 lock.release()
                 return jsonify({"code": 0, "info" : "stopped"}), 200
+    else:
+        print("record_id:"+record_id)
+        print('record_info[record_id]["ffmpeg_process_handler"]:'+str(record_info[record_id]["ffmpeg_process_handler"]))
+        log_file.write("$record_id:"+record_id)
+        log_file.write('$record_info[record_id]["ffmpeg_process_handler"]:'+str(record_info[record_id]["ffmpeg_process_handler"]))
+        lock.release()
+        return jsonify({"code": 0, "info" : "id not in record info or process handler is None"}), 200
 
-    lock.release()
-    log_file.write("/stop\t\treturned time out\n")
-    return jsonify({"code": 1, "info" : "stop failed or already stopped"}), 200
+    return jsonify({"code": 0, "info" : "stop failed or already stopped"}), 200
 
 
 @app.route('/delete', methods=['POST'])
@@ -256,25 +273,25 @@ def delete():
     print("record_id: " + str(record_id))
     print("start_block_id: " + start_block_id)
     print("end_block_id: " + end_block_id)
-    log_file.write("POST /delete\t\trecord_id:{}\tstart_block_id:{}\tend_block_id:{}\n".format(record_id,start_block_id,end_block_id))
+    log_file.write("$POST /delete\t\trecord_id:{}\tstart_block_id:{}\tend_block_id:{}\n".format(record_id,start_block_id,end_block_id))
     try:
         value = int(start_block_id)
         value = int(end_block_id)
     except ValueError:
-        log_file.write("ERROR /delete\t\t start_block_id, end_block_id should be integer number\n")
-        log_file.write("/delete\t\treturned\n")
+        log_file.write("$ERROR /delete\t\t start_block_id, end_block_id should be integer number\n")
+        log_file.write("$/delete\t\treturned\n")
         return jsonify({"code": 1, "info" : "start_block_id, end_block_id should be integer number\n"}), 200
 
     if int(start_block_id) > int(end_block_id):
         print("start_block_id > end_block_id")
-        log_file.write("ERROR /delete\t\t start_block_id > end_block_id\n")
-        log_file.write("/delete\t\treturned\n")
+        log_file.write("$ERROR /delete\t\t start_block_id > end_block_id\n")
+        log_file.write("$/delete\t\treturned\n")
         return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
     if record_id == -1:
         print("need record_id")
-        log_file.write("ERROR /delete\t\t need record_id\n")
-        log_file.write("/delete\t\treturned\n")
+        log_file.write("$ERROR /delete\t\t need record_id\n")
+        log_file.write("$/delete\t\treturned\n")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     for i in range(int(start_block_id), int(end_block_id)+1):
@@ -283,7 +300,7 @@ def delete():
         except Exception as e:
             pass
 
-    log_file.write("/delete\t\treturned\n")
+    log_file.write("$/delete\t\treturned\n")
     return jsonify({"code": 0, "info" : "deleted"}), 200
 
 @app.route('/process', methods=['POST'])
@@ -294,7 +311,7 @@ def process():
     start_block_offset = request.form.get('start_block_offset', 0)
     end_block_id = request.form.get('end_block_id', -1)
     end_block_offset = request.form.get('end_block_offset', -1)
-    log_file.write("POST /process\t\trecord_id:{}\tstart_block_id:{}\tend_block_id:{}\tstart_block_offset:{}\tend_block_offset:{}\n".format(record_id,start_block_id,end_block_id,start_block_offset,end_block_offset))
+    log_file.write("$POST /process\t\trecord_id:{}\tstart_block_id:{}\tend_block_id:{}\tstart_block_offset:{}\tend_block_offset:{}\n".format(record_id,start_block_id,end_block_id,start_block_offset,end_block_offset))
     name = request.form.get('name', str(record_id) +" - "+ str(start_block_id)+" : " + str(start_block_offset)+" - " + str(end_block_id) +" : " + str(end_block_offset) )
 
     if isinstance(start_block_offset, str):
@@ -310,13 +327,13 @@ def process():
     print("name: " + name)
 
     if record_id == -1:
-        log_file.write("/process\t\treturned\n")
+        log_file.write("$/process\t\treturned\n")
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     t = threading.Thread(target=start_process, args=[record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset])
     t.start()
 
-    log_file.write("/process\t\treturned\n")
+    log_file.write("$/process\t\treturned\n")
     return jsonify({"code": 0, "info" : "finished"}), 200
 
 @app.route('/debug', methods=['POST'])
