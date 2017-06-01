@@ -8,10 +8,10 @@ import os
 import platform
 import re
 import requests
-import danmu.python.record as record
-#import record
+#import danmu.python.record as record
+import record
 #import dl_danmu
-from analyse.dl_danmu import DanMuClient
+#from analyse.dl_danmu import DanMuClient
 
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
 CHATROOMAPI = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
