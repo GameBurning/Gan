@@ -1,39 +1,22 @@
 #!/usr/bin/env python3
-import urllib.request
-import socket
-import json
 import time
 import threading
 import os
 import platform
-import re
-import requests
 import danmu.python.record as record
+from .dl_danmu.DouYu    import DouYuDanMuClient
+from .dl_danmu.Panda    import PandaDanMuClient
+from .dl_danmu.log      import set_logging
+from .dl_danmu.config   import VERSION
+#from dl_analyse.dl_danmu import DanMuClient
 #import record
-#import dl_danmu
-from analyse.dl_danmu import DanMuClient
+#from dl_danmu import DanMuClient
 
-CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
-CHATROOMAPI = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
-LOGFILEDIR = '~/pandaLog/'
-IGNORE_LEN = 12
-META_LEN = 4
-CHECK_LEN = 4
-FIRST_REQ = b'\x00\x06\x00\x02'
-FIRST_RPS = b'\x00\x06\x00\x06'
-KEEPALIVE = b'\x00\x06\x00\x00'
-RECVMSG = b'\x00\x06\x00\x03'
-DANMU_TYPE = '1'
-BAMBOO_TYPE = '206'
-AUDIENCE_TYPE = '207'
-TU_HAO_TYPE = '306'
+__version__ = VERSION
+
+LOGFILEDIR = '~/daily_log/'
 SYSINFO = platform.system()
 INIT_PROPERTIES = 'init.properties'
-MANAGER = '60'
-SP_MANAGER = '120'
-HOSTER = '90'
-OFFLINE_STATUS = '3'
-ONLINE_STATUS = '2'
 
 DANMU_DICT = {}
 TRIPLE_SIX_DICT = {}
@@ -42,34 +25,73 @@ AUDITION_DICT = {}
 DOUYU_DICT = {}
 ONLINE_FLAGS = {}
 RECORD_ID_DICT = {}
-# LOCK = {}
 ANALYSIS_DURATION = 45
 THRESHOLD = 800
 MAIN_THREAD_SLEEP_TIME = 5
 
 
 class DanmuThread(threading.Thread):
-    def __init__(self, roomID, name):
+    def __init__(self, room_id, platform, name, url):
         threading.Thread.__init__(self)
-        self.roomID = roomID
-        self.name = name
+        self.__room_id      = room_id
+        self.__name         = name
+        self.__url          = url
+        self.__platform     = platform
+        self.__functionDict = {'default': lambda x: 0}
+        self.__isRunning    = False
+        self.__baseClient   = None
+        if 'http://' == url[:7]:
+            self.__url = url
+        else:
+            self.__url = 'http://' + url
+        client_dict = {'panda': PandaDanMuClient,
+                       'douyu': DouYuDanMuClient}
+        if not platform in client_dict.keys():
+            raise KeyError
+        self.__baseClient = client_dict.get[platform]
 
-    def run(self):
+    def __register(self, fn, msgType):
+        if fn is None:
+            if msgType == 'default':
+                self.__functionDict['default'] = lambda x: 0
+            elif self.__functionDict.get(msgType):
+                del self.__functionDict[msgType]
+        else:
+            self.__functionDict[msgType] = fn
+
+    def default(self, fn):
+        self.__register(fn, 'default')
+        return fn
+
+    def danmu(self, fn):
+        self.__register(fn, 'danmu')
+        return fn
+
+    def gift(self, fn):
+        self.__register(fn, 'gift')
+        return fn
+
+    def other(self, fn):
+        self.__register(fn, 'other')
+        return fn
+
+    def start(self, block_size=45):
         print("===========DanmuThread on {} starts===========".format(self.name))
         f = open('danmu_log', 'a')
         f.write("===========DanmuThread on {} starts===========\n".format(self.name))
         try:
-            m = record.start_record(self.roomID, block_size=ANALYSIS_DURATION)
+            m = record.start_record(self.__roomID, block_size=ANALYSIS_DURATION)
             f.write("m is {}\n".format(m))
             (record_id, start_time) = m
             start_time = int(start_time)
         except Exception as e:
             print(e)
-            ONLINE_FLAGS[self.roomID] = False
+            ONLINE_FLAGS[self.__roomID] = False
             print("{}'s starting has error and return".format(self.name))
             return
-        RECORD_ID_DICT[self.roomID] = record_id
-        statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
+        RECORD_ID_DICT[self.__roomID] = record_id
+        statistic_filename = str(self.__roomID) + "_" + self.name + "_" + \
+                             time.ctime(start_time) + ".csv"
         logdir = os.path.expanduser(LOGFILEDIR)
         danmu = []
         lucky = []
@@ -82,21 +104,21 @@ class DanmuThread(threading.Thread):
         block_id = 0
         logfile = open(logdir + statistic_filename, 'w')
         logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻, audition\n")
-        while ONLINE_FLAGS[self.roomID]:
+        while ONLINE_FLAGS[self.__roomID]:
             block_start_time = int(time.time())
-            DANMU_DICT[self.roomID] = 0
-            TRIPLE_SIX_DICT[self.roomID] = 0
-            LUCKY_DICT[self.roomID] = 0
-            DOUYU_DICT[self.roomID] = 0
+            DANMU_DICT[self.__roomID] = 0
+            TRIPLE_SIX_DICT[self.__roomID] = 0
+            LUCKY_DICT[self.__roomID] = 0
+            DOUYU_DICT[self.__roomID] = 0
 
             sleep_time = start_time + ANALYSIS_DURATION * (block_id + 1) - time.time()
             print('{}\'s wait time is :{}'.format(self.name, sleep_time))
             time.sleep(sleep_time)
-            danmu.append(DANMU_DICT[self.roomID])
-            lucky.append(LUCKY_DICT[self.roomID])
-            douyu.append(DOUYU_DICT[self.roomID])
-            triple_six.append(TRIPLE_SIX_DICT[self.roomID])
-            audition.append(AUDITION_DICT[self.roomID])
+            danmu.append(DANMU_DICT[self.__roomID])
+            lucky.append(LUCKY_DICT[self.__roomID])
+            douyu.append(DOUYU_DICT[self.__roomID])
+            triple_six.append(TRIPLE_SIX_DICT[self.__roomID])
+            audition.append(AUDITION_DICT[self.__roomID])
 
             try:
                 logfile.write("{},{},{},{},{},{},{}\n".format(block_start_time,
@@ -173,25 +195,26 @@ def main():
     #     LOCK[id] = threading.Lock()
     while True:
         for (id, name) in roomInfos:
-            online_status = room_is_online(id, name)
-            if not ONLINE_FLAGS[id] and online_status:
-                danmulog_filename = str(id) + "_" + name + "_Danmu" + ".txt"
-                logdir = os.path.expanduser(LOGFILEDIR)
-                f = open(logdir + danmulog_filename, 'a')
-                ONLINE_FLAGS[id] = True
-                threading.Thread(target=getChatInfo, args=(id, name, f)).start()
-                DanmuThread(id, name).start()
-                print("{} goes online".format(name))
-                f.write("{} goes online\n".format(name))
-            elif ONLINE_FLAGS[id] and not online_status:
-                if RECORD_ID_DICT.get(id, None) is not None:
-                    stop_success = record.stop_record(RECORD_ID_DICT[id])
-                    if stop_success is False:
-                        continue
-                    RECORD_ID_DICT[id] = None
-                ONLINE_FLAGS[id] = False
-                print("{} goes offline".format(name))
-                f.write("{} goes offline\n".format(name))
+            # online_status = room_is_online(id, name)
+            # if not ONLINE_FLAGS[id] and online_status:
+            #     danmulog_filename = str(id) + "_" + name + "_Danmu" + ".txt"
+            #     logdir = os.path.expanduser(LOGFILEDIR)
+            #     f = open(logdir + danmulog_filename, 'a')
+            #     ONLINE_FLAGS[id] = True
+            #     threading.Thread(target=getChatInfo, args=(id, name, f)).start()
+            #     DanmuThread(id, name).start()
+            #     print("{} goes online".format(name))
+            #     f.write("{} goes online\n".format(name))
+            # elif ONLINE_FLAGS[id] and not online_status:
+            #     if RECORD_ID_DICT.get(id, None) is not None:
+            #         stop_success = record.stop_record(RECORD_ID_DICT[id])
+            #         if stop_success is False:
+            #             continue
+            #         RECORD_ID_DICT[id] = None
+            #     ONLINE_FLAGS[id] = False
+            #     print("{} goes offline".format(name))
+            #     f.write("{} goes offline\n".format(name))
+            pass
         time.sleep(MAIN_THREAD_SLEEP_TIME)
         f.flush()
 

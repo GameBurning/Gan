@@ -2,6 +2,7 @@ import abc, threading, time, logging, traceback
 
 logger = logging.getLogger('danmu')
 
+
 # This client will auto-reload if exception is raised inside and write a log
 # it is deprecated once used
 # log of main start and thread is recorded
@@ -22,12 +23,18 @@ class AbstractDanMuClient(object):
         self.danmuThread, self.heartThread = None, None
         self.msgPipe = []
         self.danmuWaitTime = -1
+
     def start(self):
+        print("===========Socket thread starts===========".format(self.name))
         while not self.deprecated:
             try:
+                # not stopped by outer client
                 while not self.deprecated:
+                    # if online then break
                     if self._get_live_status(): break
+                    # if offline wait for sometime
                     time.sleep(self.anchorStatusRescanTime)
+                # if continued by outer client, then stop this function
                 else:
                     break
                 danmuSocketInfo, roomInfo = self._prepare_env()
@@ -42,6 +49,7 @@ class AbstractDanMuClient(object):
                 time.sleep(5)
             else:
                 break
+
     def _socket_timeout(self, fn):
     # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
@@ -57,6 +65,7 @@ class AbstractDanMuClient(object):
                     time.sleep(1)
                 self.start()
         return __socket_timeout
+
     def _wrap_thread(self, danmuThreadFn, heartThreadFn):
         @self._socket_timeout
         def heart_beat(self):
@@ -72,25 +81,31 @@ class AbstractDanMuClient(object):
         self.heartThread.setDaemon(True)
         self.danmuThread = threading.Thread(target = get_danmu, args = (self,))
         self.danmuThread.setDaemon(True)
+
     def _start_receive(self):
         self.live = True
         self.danmuThread.start()
         self.heartThread.start()
         self.danmuWaitTime = time.time() + 20
+
     def thread_alive(self):
         if self.danmuSocket is None or not self.danmuThread.isAlive():
             return False
         else:
             return True
+
     @abc.abstractmethod
-    def _get_live_status(self):
+    def get_live_status(self):
         return False # return whether anchor is on live
+
     @abc.abstractmethod
     def _prepare_env(self):
         return ('0.0.0.0', 80), {} # danmu, roomInfo
+
     @abc.abstractmethod
     def _init_socket(self, danmu, roomInfo):
         pass
+
     # method shouldn't include the main while loop
     # danmu method should reload self.danmuWaitTime
     @abc.abstractmethod

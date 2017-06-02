@@ -5,6 +5,7 @@ import requests
 
 from .Abstract import AbstractDanMuClient
 
+
 class _socket(socket.socket):
     def communicate(self, data):
         self.push(data)
@@ -20,22 +21,26 @@ class _socket(socket.socket):
         except Exception as e:
             return ''
 
+
 class DouYuDanMuClient(AbstractDanMuClient):
-    def _get_live_status(self):
+    def get_live_status(self):
         url = 'http://open.douyucdn.cn/api/RoomApi/room/%s' % (
-            self.url.split('/')[-1] or self.url.split('/')[-2])
+            self.roomId)
         j = requests.get(url).json()
         if j.get('error') != 0 or j['data'].get('room_status') != '1': return False
         self.roomId = j['data']['room_id']
         return True
+
     def _prepare_env(self):
         return ('openbarrage.douyutv.com', 8601), {'room_id': self.roomId}
+
     def _init_socket(self, danmu, roomInfo):
         self.danmuSocket = _socket()
         self.danmuSocket.connect(danmu)
         self.danmuSocket.settimeout(3)
         self.danmuSocket.communicate('type@=loginreq/roomid@=%s/'%roomInfo['room_id'])
         self.danmuSocket.push('type@=joingroup/rid@=%s/gid@=-9999/'%roomInfo['room_id'])
+
     def _create_thread_fn(self, roomInfo):
         def keep_alive(self):
             self.danmuSocket.push('type@=keeplive/tick@=%s/'%int(time.time()))

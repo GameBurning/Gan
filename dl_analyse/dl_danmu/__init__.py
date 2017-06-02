@@ -2,35 +2,39 @@ import re, threading, time, traceback
 
 from .DouYu    import DouYuDanMuClient
 from .Panda    import PandaDanMuClient
-from .ZhanQi   import ZhanQiDanMuClient
-from .QuanMin  import QuanMinDanMuClient
-from .Bilibili import BilibiliDanMuClient
-from .HuoMao   import HuoMaoDanMuClient
 from .log      import set_logging
 from .config   import VERSION
 
 __version__ = VERSION
 __all__     = ['DanMuClient']
 
+
 class DanMuClient(object):
-    def __init__(self, url):
+    def __init__(self, url, name, id, platform):
         self.__url          = ''
         self.__baseClient   = None
         self.__client       = None
         self.__functionDict = {'default': lambda x: 0}
         self.__isRunning    = False
+        self.__name         = name
+        self.__id           = id
+        self.__platform     = platform
         if 'http://' == url[:7]:
             self.__url = url
         else:
             self.__url = 'http://' + url
-        for u, bc in {'panda.tv'    : PandaDanMuClient,
-                'douyu.com'         : DouYuDanMuClient,
-                'quanmin.tv'        : QuanMinDanMuClient,
-                'zhanqi.tv'         : ZhanQiDanMuClient,
-                'live.bilibili.com' : BilibiliDanMuClient,
-                'huomao.com'        : HuoMaoDanMuClient, }.items() :
-            if re.match(r'^(?:http://)?.*?%s/(.+?)$' % u, url):
-                self.__baseClient = bc; break
+        client_dict = {'panda': PandaDanMuClient,
+                       'douyu': DouYuDanMuClient}
+        self.__baseClient = client_dict[platform]
+        # for u, bc in {'panda.tv'    : PandaDanMuClient,
+        #         'douyu.com'         : DouYuDanMuClient,
+        #         'quanmin.tv'        : QuanMinDanMuClient,
+        #         'zhanqi.tv'         : ZhanQiDanMuClient,
+        #         'live.bilibili.com' : BilibiliDanMuClient,
+        #         'huomao.com'        : HuoMaoDanMuClient, }.items() :
+        #     if re.match(r'^(?:http://)?.*?%s/(.+?)$' % u, url):
+        #         self.__baseClient = bc; break
+
     def __register(self, fn, msgType):
         if fn is None:
             if msgType == 'default':
@@ -39,27 +43,34 @@ class DanMuClient(object):
                 del self.__functionDict[msgType]
         else:
             self.__functionDict[msgType] = fn
+
     def isValid(self):
         return self.__baseClient is not None
+
     def default(self, fn):
         self.__register(fn, 'default')
         return fn
+
     def danmu(self, fn):
         self.__register(fn, 'danmu')
         return fn
+
     def gift(self, fn):
         self.__register(fn, 'gift')
         return fn
+
     def other(self, fn):
         self.__register(fn, 'other')
         return fn
-    def start(self, blockThread = False, pauseTime = .1):
+
+    def start(self, block_thread=False, pause_time=.1):
         if not self.__baseClient or self.__isRunning: return False
         self.__client = self.__baseClient(self.__url)
         self.__isRunning = True
         receiveThread = threading.Thread(target=self.__client.start)
         receiveThread.setDaemon(True)
         receiveThread.start()
+
         def _start():
             while self.__isRunning:
                 if self.__client.msgPipe:
@@ -71,8 +82,8 @@ class DanMuClient(object):
                     except:
                         traceback.print_exc()
                 else:
-                    time.sleep(pauseTime)
-        if blockThread:
+                    time.sleep(pause_time)
+        if block_thread:
             try:
                 _start()
             except KeyboardInterrupt:
@@ -82,6 +93,7 @@ class DanMuClient(object):
             danmuThread.setDaemon(True)
             danmuThread.start()
         return True
+
     def stop(self):
         self.__isRunning = False
         if self.__client: self.__client.deprecated = True

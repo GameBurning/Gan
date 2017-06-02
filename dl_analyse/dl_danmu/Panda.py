@@ -6,6 +6,7 @@ import requests
 
 from .Abstract import AbstractDanMuClient
 
+
 class _socket(socket.socket):
     def communicate(self, data):
         self.push(data)
@@ -18,8 +19,10 @@ class _socket(socket.socket):
         except:
             return ''
 
+
 class PandaDanMuClient(AbstractDanMuClient):
-    def _get_live_status(self):
+    # return if the room is Online
+    def get_live_status(self):
         params = {
             'roomid': (self.url.split('/')[-1] or
                 self.url.split('/')[-2]),
@@ -27,6 +30,8 @@ class PandaDanMuClient(AbstractDanMuClient):
             '_': int(time.time()), }
         j = requests.get('http://www.panda.tv/api_room', params).json()['data']
         return j['videoinfo']['status'] == '2'
+
+    # return (danmuSocketInfo), roomInfo
     def _prepare_env(self):
         roomId = self.url.split('/')[-1] or self.url.split('/')[-2]
         url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
@@ -42,6 +47,8 @@ class PandaDanMuClient(AbstractDanMuClient):
         serverInfo = requests.get(url, params).json()['data']
         serverAddress = serverInfo['chat_addr_list'][0].split(':')
         return (serverAddress[0], int(serverAddress[1])), serverInfo
+
+
     def _init_socket(self, danmu, roomInfo):
         data = [
             ('u', '%s@%s'%(roomInfo['rid'], roomInfo['appid'])),
