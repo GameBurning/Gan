@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
-import time
-import threading
 import os
-import platform
-import danmu.python.record as record
-from .dl_danmu.DouYu    import DouYuDanMuClient
-from .dl_danmu.Panda    import PandaDanMuClient
-from .dl_danmu.log      import set_logging
-from .dl_danmu.config   import VERSION
-#from dl_analyse.dl_danmu import DanMuClient
-#import record
-#from dl_danmu import DanMuClient
+import threading
+import time
+
+import dl_analyse.record as record
+
+from .dl_danmu.DouYu import DouYuDanMuClient
+from .dl_danmu.Panda import PandaDanMuClient
+from .dl_danmu.config import VERSION
+from .rule import *
+# from dl_analyse.dl_danmu import DanMuClient
+# import record
+# from dl_danmu import DanMuClient
 
 __version__ = VERSION
-
-LOGFILEDIR = '~/daily_log/'
-SYSINFO = platform.system()
-INIT_PROPERTIES = 'init.properties'
 
 DANMU_DICT = {}
 TRIPLE_SIX_DICT = {}
@@ -30,7 +27,30 @@ THRESHOLD = 800
 MAIN_THREAD_SLEEP_TIME = 5
 
 
+class DanmuCounter:
+    def __init__(self):
+        self.__DanmuList = []
+        self.__TripleSixList = []
+        self.__DouyuList = []
+        self.__LuckyList = []
+
+    def add_danmu(self, content):
+        self.__DanmuList[-1] += 1
+        if any(word in content for word in Douyu_):
+            self.__DouyuList[-1] += 1
+        if any(word in content for word in Lucky_):
+            self.__LuckyList[-1] += 1
+        if any(word in content for word in Triple_):
+            self.__TripleSixList += 1
+
+    def add_block(self):
+        self.__DanmuList.append(0)
+        self.__TripleSixList.append(0)
+        self.__DouyuList.append(0)
+        self.__LuckyList.append(0)
+
 class DanmuThread(threading.Thread):
+
     def __init__(self, room_id, platform, name, url):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
@@ -40,6 +60,8 @@ class DanmuThread(threading.Thread):
         self.__functionDict = {'default': lambda x: 0}
         self.__isRunning    = False
         self.__baseClient   = None
+        self.__client       = None
+        self.danmuCounter = DanmuCounter()
         if 'http://' == url[:7]:
             self.__url = url
         else:
@@ -48,7 +70,7 @@ class DanmuThread(threading.Thread):
                        'douyu': DouYuDanMuClient}
         if not platform in client_dict.keys():
             raise KeyError
-        self.__baseClient = client_dict.get[platform]
+        self.__baseClient = client_dict[platform]
 
     def __register(self, fn, msgType):
         if fn is None:
@@ -154,6 +176,11 @@ class DanmuThread(threading.Thread):
         print("===========Thread on {} ends===========".format(self.name))
         f.write("===========DanmuThread on {} ends===========\n".format(self.name))
         f.close()
+
+    def stop(self):
+        self.__isRunning = False
+        if self.__client:
+            self.__client.deprecated = True
 
 
 def loadInit()->[]:

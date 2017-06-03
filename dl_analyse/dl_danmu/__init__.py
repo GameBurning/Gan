@@ -96,4 +96,5 @@ class DanMuClient(object):
 
     def stop(self):
         self.__isRunning = False
-        if self.__client: self.__client.deprecated = True
+        if self.__client:
+            self.__client.deprecated = True
