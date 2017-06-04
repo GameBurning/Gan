@@ -61,5 +61,7 @@ class DouYuDanMuClient(AbstractDanMuClient):
                     pass
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
-                    self.msgPipe.append(msg)
+                    # Modification
+                    if msg['MsgType'] == 'danmu':
+                        self.count_danmu(msg['Content'])
         return get_danmu, keep_alive # danmu, heart
