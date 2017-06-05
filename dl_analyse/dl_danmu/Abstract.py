@@ -13,16 +13,18 @@ logger = logging.getLogger('danmu')
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, url, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
-        self.url = url
+    def __init__(self, room_id, name, count_danmu, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+        self.room_id = room_id
+        self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
         self.anchorStatusRescanTime = anchorStatusRescanTime
-        self.deprecated = False # this is an outer live flag
-        self.live = False # this is an inner live flag
+        self.deprecated = False  # this is an outer live flag
+        self.live = False  # this is an inner live flag
         self.danmuSocket = None
         self.danmuThread, self.heartThread = None, None
-        self.msgPipe = []
         self.danmuWaitTime = -1
+        self.danmuProcess = None
+        self.count_danmu = count_danmu
 
     def start(self):
         print("===========Socket thread starts===========".format(self.name))
@@ -31,7 +33,7 @@ class AbstractDanMuClient(object):
                 # not stopped by outer client
                 while not self.deprecated:
                     # if online then break
-                    if self._get_live_status(): break
+                    if self.get_live_status(): break
                     # if offline wait for sometime
                     time.sleep(self.anchorStatusRescanTime)
                 # if continued by outer client, then stop this function
@@ -93,6 +95,7 @@ class AbstractDanMuClient(object):
             return False
         else:
             return True
+
 
     @abc.abstractmethod
     def get_live_status(self):
