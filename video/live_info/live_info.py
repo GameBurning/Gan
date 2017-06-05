@@ -68,8 +68,9 @@ def get_stream_panda(room_id):
     room_status = None
     video_id = None
     try:
-        r = requests.get("http://www.panda.tv/api_room_v3?roomid={}&__plat=pc_web&_={}".format(room_id, int(time.time())), timeout=3)
+        r = requests.get("http://www.panda.tv/api_room_v3?roomid={}&__plat=pc_web&_={}".format(room_id, int(time.time())), timeout=5)
     except:
+        print("cannot get response from room info API\n")
         return []
     pp = pprint.PrettyPrinter(indent=4)
     response = None
