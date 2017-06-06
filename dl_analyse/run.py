@@ -7,9 +7,7 @@ import threading
 import os
 import platform
 import re
-import requests
-#import danmu.python.record as record
-import record
+from dl_analyse.dl_danmu import DanmuThread
 
 PORT = 5002
 CHATINFOURL = 'http://riven.panda.tv/chatroom/getinfo?roomid='
@@ -45,87 +43,6 @@ RECORD_ID_DICT = {}
 ANALYSIS_DURATION = 45
 THRESHOLD = 600
 MAIN_THREAD_SLEEP_TIME = 5
-
-
-class DanmuThread(threading.Thread):
-    def __init__(self, roomID, name):
-        threading.Thread.__init__(self)
-        self.roomID = roomID
-        self.name = name
-
-    def run(self):
-        print("===========DanmuThread on {} starts===========".format(self.name))
-        try:
-            (record_id, start_time) = record.start_record(self.roomID, block_size=ANALYSIS_DURATION, port=PORT)
-            start_time = int(start_time)
-        except Exception as e:
-            print(e)
-            ONLINE_FLAGS[self.id] == False
-            print("{} has error and return".format(self.name))
-            return
-        RECORD_ID_DICT[self.roomID] = record_id
-        statistic_filename = str(self.roomID) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
-        logdir = os.path.expanduser(LOGFILEDIR)
-        danmu = []
-        lucky = []
-        douyu = []
-        triple_six = []
-        score_dict = []
-        delete_range = []
-        combine_range = []
-        audition = []
-        block_id = 0
-        logfile = open(logdir + statistic_filename, 'w')
-        logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻, audition\n")
-        while ONLINE_FLAGS[self.roomID]:
-            block_start_time = int(time.time())
-            DANMU_DICT[self.roomID] = 0
-            TRIPLE_SIX_DICT[self.roomID] = 0
-            LUCKY_DICT[self.roomID] = 0
-            DOUYU_DICT[self.roomID] = 0
-
-            sleep_time = start_time + ANALYSIS_DURATION * (block_id + 1) - time.time()
-            print('{}\'s wait time is :{}'.format(self.name, sleep_time))
-            time.sleep(sleep_time)
-            danmu.append(DANMU_DICT[self.roomID])
-            lucky.append(LUCKY_DICT[self.roomID])
-            douyu.append(DOUYU_DICT[self.roomID])
-            triple_six.append(TRIPLE_SIX_DICT[self.roomID])
-            audition.append(AUDITION_DICT[self.roomID])
-
-            try:
-                logfile.write("{},{},{},{},{},{},{}\n".format(block_start_time,
-                                                              block_id, danmu[-1],
-                                                              triple_six[-1],lucky[-1],
-                                                              douyu[-1],audition[-1]))
-                print("{}'s logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}, audition:{}"
-                      .format(self.name, block_start_time, block_id, danmu[-1], triple_six[-1], lucky[-1],
-                              douyu[-1], audition[-1]))
-                logfile.flush()
-            except Exception as e:
-                print(e)
-
-            block_score = triple_six[-1] * 8 + lucky[-1] * 12 + douyu[-1] * 20
-            score_dict.append(block_score)
-
-            print('{}\'s current block_id is {}'.format(self.name, block_id))
-            if block_id >= 3:
-                if douyu[-2] > 1 or score_dict[-2] >= THRESHOLD:
-                    output_name = '{}_douyu{}_block{}to{}_score{}_lucky{}_triple{}' \
-                        .format(self.name, douyu[-2], block_id - 3, block_id,
-                                score_dict[-2],
-                                lucky[-2],
-                                triple_six[-2])
-                    threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 3, block_id, output_name, PORT)).start()
-                if douyu[-3] <= 1 and score_dict[-3] < THRESHOLD:
-                    # save the clip but not combine it in case of use
-                    threading.Thread(target=record.delete_block, args=(record_id, block_id - 3,
-                                                                   block_id - 3, PORT)).start()
-            block_id += 1
-        logfile.close()
-        print("===========Thread on {} ends===========".format(self.name))
-
 
 def loadInit()->[]:
     roomInfos = []

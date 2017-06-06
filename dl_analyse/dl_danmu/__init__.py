@@ -1,13 +1,11 @@
-import threading
-from collections import namedtuple
-import time
 import os
+import threading
+import time
 
-import dl_analyse.record as record
-from .rule import *
-
+import dl_analyse.dl_danmu.record as record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
+from .rule import *
 
 
 class DanmuCounter:
@@ -41,6 +39,7 @@ class DanmuCounter:
 
     def get_count(self, block_id=-1):
         count_res = namedtuple("danmu", "triple", "douyu", "lucky")
+
         return count_res(self.DanmuList[block_id], self.TripleSixList[block_id], \
                          self.DouyuList[block_id], self.LuckyList[block_id])
 
