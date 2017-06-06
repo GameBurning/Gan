@@ -40,10 +40,10 @@ class DanmuCounter:
                + self.LuckyList[block_id] * ScoreRule_.lucky
 
     def get_count(self, block_id=-1):
-        CountRes = namedtuple("CountRes", ["danmu", "triple", "douyu", "lucky"])
+        CountRes = namedtuple("CountRes", ["danmu", "triple", "lucky", "douyu"])
 
         return CountRes(self.DanmuList[block_id], self.TripleSixList[block_id],
-                         self.DouyuList[block_id], self.LuckyList[block_id])
+                        self.LuckyList[block_id], self.DouyuList[block_id])
 
 
 class DanmuThread(threading.Thread):
