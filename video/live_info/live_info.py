@@ -19,18 +19,22 @@ def get_stream_douyu(room_id):
 
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(r.text)
-    if 'data' not in json.loads(r.text):
+    j = json.loads(r.text)
+    if 'data' not in j or j['data'] == None:
         return stream_urls
-    data = json.loads(r.text)['data']
+    data = j['data']
     server_status = data.get('error',0)
     if server_status is not 0:
-        raise ValueError("Server returned error:%s" % server_status)
+        print("Server returned error:%s" % server_status)
+        return []
 
     title = data.get('room_name')
     show_status = data.get('show_status')
     print("show_status : " + show_status)
+
     if show_status is not "1":
-        raise ValueError("The live stream is not online! (Errno:%s)" % server_status)
+        print("The live stream is not online! (Errno:%s)" % server_status)
+        return []
 
     tt = int(time.time())
     sign_content = 'lapi/live/thirdPart/getPlay/{}?aid=pcclient&rate=0&time={}9TUk5fjjUjg9qIMH3sdnh'.format(room_id, tt)
