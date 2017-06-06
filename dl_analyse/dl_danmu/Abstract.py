@@ -13,7 +13,7 @@ logger = logging.getLogger('danmu')
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.room_id = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -24,7 +24,7 @@ class AbstractDanMuClient(object):
         self.danmuThread, self.heartThread = None, None
         self.danmuWaitTime = -1
         self.danmuProcess = None
-        self.count_danmu = count_danmu
+        self.countDanmuFn = count_danmu_fn
 
     def start(self):
         print("===========Socket thread starts===========".format(self.name))

@@ -5,8 +5,8 @@ Douyu_ = ('时刻', '天天卡牌', '闭嘴')
 Lucky_ = ('学不来', '狗')
 Triple_ = ('66')
 
-# File Locations
-LOGFILEDIR = '~/daily_log/'
+# File Path
+LogFilePath_ = '~/daily_log/'
 
 # URL Rules
 PlatformUrl_ = {
@@ -15,7 +15,12 @@ PlatformUrl_ = {
 }
 
 # Score Rules
-__ScoreRuleTuple = namedtuple("douyu", "triple", "lucky")
-ScoreRule_ = __ScoreRuleTuple(50, 6, 2)
+ScoreRuleTuple = namedtuple("ScoreRuleTuple", ["douyu", "triple", "lucky"])
+ScoreRule_ = ScoreRuleTuple(50, 6, 2)
 ScoreThreshold_ = 800
-ANALYSIS_DURATION_ = 45
+Block_Size_In_Second_ = 10
+Block_Num_Per_Video_ = 4
+
+
+# Developer Mode
+Record_Mode_ = False
