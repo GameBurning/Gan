@@ -23,4 +23,4 @@ Block_Num_Per_Video_ = 4
 
 
 # Developer Mode
-Record_Mode_ = False
+Record_Mode_ = True

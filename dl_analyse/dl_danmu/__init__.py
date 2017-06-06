@@ -70,12 +70,7 @@ class DanmuThread(threading.Thread):
         self.__client = self.__baseClient(self.__room_id, self.__name, self.danmuCounter.count_danmu)
 
     def room_is_live(self):
-        try:
-            is_live = self.__client.get_live_status()
-            return is_live
-        except JSONDecodeError as e:
-            print("inside room is live: {}".format(e))
-            return False
+        return self.__client.get_live_status()
 
     def run(self, block_size=45):
         while True:
@@ -99,17 +94,28 @@ class DanmuThread(threading.Thread):
         f.write("===========DanmuThread on {} starts===========\n".format(self.__name))
         try:
             if Record_Mode_:
-                m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_, platform=self.__platform)
-                (record_id, start_time) = m
-                f.write("m is {}\n".format(m))
-                start_time = int(start_time)
-                self.__record_id = record_id
+                trial_counter = 0
+                while trial_counter < 5:
+                    m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_, platform=self.__platform)
+                    print(m)
+                    (record_id, start_time) = m
+                    f.write("m is {}\n".format(m))
+                    if start_time != -1:
+                        start_time = int(start_time)
+                        self.__record_id = record_id
+                        break
+                    else:
+                        print("{} can't get steam".format(self.__name))
+                        time.sleep(5)
+                        trial_counter += 1
+                else:
+                    return
             else:
                 start_time = int(time.time())
         except Exception as e:
             print("inside gan {}".format(e))
             self.__is_running = False
-            print("{}'s starting has error and return".format(self.name))
+            print("{}'s starting has error and return".format(self.__name))
             return
         receive_thread = threading.Thread(target=self.__client.start)
         receive_thread.start()
@@ -124,7 +130,7 @@ class DanmuThread(threading.Thread):
             block_start_time = int(time.time())  # For record
             block_end_time = start_time + Block_Size_In_Second_ * (block_id + 1)  # For calculating sleeping_time
             sleep_time = block_end_time - time.time()
-            print('{}\'s wait time is :{}'.format(self.__name, sleep_time))
+            # print('{}\'s wait time is :{}'.format(self.__name, sleep_time))
             time.sleep(sleep_time)
 
             count_res = (self.danmuCounter.get_count())
@@ -136,7 +142,7 @@ class DanmuThread(threading.Thread):
             except Exception as e:
                 print("inside while loop in gan: {}".format(e))
 
-            print('{}\'s current block_id is {}'.format(self.__name, block_id))
+            # print('{}\'s current block_id is {}'.format(self.__name, block_id))
 
             if Record_Mode_ and block_id >= 3:
                 if self.danmuCounter.DouyuList[block_id - 1] > 1:
