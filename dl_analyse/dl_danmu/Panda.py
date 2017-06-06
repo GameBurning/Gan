@@ -24,8 +24,7 @@ class PandaDanMuClient(AbstractDanMuClient):
     # return if the room is Online
     def get_live_status(self):
         params = {
-            'roomid': (self.url.split('/')[-1] or
-                self.url.split('/')[-2]),
+            'roomid': self.room_id,
             'pub_key': '',
             '_': int(time.time()), }
         j = requests.get('http://www.panda.tv/api_room', params).json()['data']
@@ -80,7 +79,10 @@ class PandaDanMuClient(AbstractDanMuClient):
                     pass
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
-                    self.msgPipe.append(msg)
+                    #self.msgPipe.append(msg)
+                    if msg['MsgType'] == 'danmu':
+                        print("Di Zi Shi Beauty")
+                        self.countDanmuFn(msg['Content'])
         def heart_beat(self):
             self.danmuSocket.push(b'\x00\x06\x00\x06')
             time.sleep(60)

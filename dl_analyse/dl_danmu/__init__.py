@@ -1,16 +1,16 @@
-import threading
-from collections import namedtuple
-import time
 import os
+import threading
+import time
 
-import dl_analyse.record as record
-from .rule import *
-
+import dl_danmu.record as record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
+from .rule import *
+from json.decoder import JSONDecodeError
 
 
 class DanmuCounter:
+
     def __init__(self, name):
         self.name = name
         self.DanmuList = []
@@ -40,75 +40,105 @@ class DanmuCounter:
                + self.LuckyList[block_id] * ScoreRule_.lucky
 
     def get_count(self, block_id=-1):
-        count_res = namedtuple("danmu", "triple", "douyu", "lucky")
-        return count_res(self.DanmuList[block_id], self.TripleSixList[block_id], \
+        CountRes = namedtuple("CountRes", ["danmu", "triple", "douyu", "lucky"])
+
+        return CountRes(self.DanmuList[block_id], self.TripleSixList[block_id],
                          self.DouyuList[block_id], self.LuckyList[block_id])
 
 
 class DanmuThread(threading.Thread):
 
-    def __init__(self, room_id, platform, name):
+    def __init__(self, room_id, platform, name, live_status_rescan_interval=30):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
         self.__name         = name
         self.__platform     = platform
-        self.__deprecated   = False
+        self.__is_live      = False
+        self.__is_running   = False
+        self.__should_stop  = False
         self.__baseClient   = None
         self.__client       = None
         self.__record_id    = ""
+        self.__live_status_rescan_interval = live_status_rescan_interval
         self.danmuCounter = DanmuCounter(name)
-        self.__url = 'http://' + PlatformUrl_[self.__name] + self.__room_id
+        self.__url = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
         client_dict = {'panda': PandaDanMuClient,
                        'douyu': DouYuDanMuClient}
         if platform not in client_dict.keys():
             raise KeyError
         self.__baseClient = client_dict[platform]
+        self.__client = self.__baseClient(self.__room_id, self.__name, self.danmuCounter.count_danmu)
 
     def room_is_live(self):
-        return self.__client.get_live_status()
+        try:
+            is_live = self.__client.get_live_status()
+            return is_live
+        except JSONDecodeError as e:
+            print("inside room is live: {}".format(e))
+            return False
 
     def run(self, block_size=45):
-        print("===========DanmuThread on {} starts===========".format(self.name))
-        f = open('danmu_log', 'a')
-        f.write("===========DanmuThread on {} starts===========\n".format(self.name))
-        try:
-            m = record.start_record(self.__room_id, block_size=ANALYSIS_DURATION_, \
-                                    platform=self.__platform)
-            f.write("m is {}\n".format(m))
-            (record_id, start_time) = m
-            start_time = int(start_time)
-            self.__record_id = record_id
-        except Exception as e:
-            print(e)
+        while True:
+            l_live_status = self.room_is_live()
+            if self.__is_running and not l_live_status:
+                self.stop()
+            elif not self.__is_running and l_live_status:
+                self.gan()
+            time.sleep(self.__live_status_rescan_interval)
 
-            ONLINE_FLAGS[self.__room_id] = False
+    def stop(self):
+        if self.__client:
+            self.__client.deprecated = True
+        if Record_Mode_:
+            record.stop_record(self.__record_id)
+        self.__should_stop = True
+
+    def gan(self):
+        print("===========DanmuThread on {} starts===========".format(self.__name))
+        f = open('danmu_log', 'a')
+        f.write("===========DanmuThread on {} starts===========\n".format(self.__name))
+        try:
+            if Record_Mode_:
+                m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_, platform=self.__platform)
+                (record_id, start_time) = m
+                f.write("m is {}\n".format(m))
+                start_time = int(start_time)
+                self.__record_id = record_id
+            else:
+                start_time = int(time.time())
+        except Exception as e:
+            print("inside gan {}".format(e))
+            self.__is_running = False
             print("{}'s starting has error and return".format(self.name))
             return
-        statistic_filename = str(self.__room_id) + "_" + self.name + "_" + \
-                             time.ctime(start_time) + ".csv"
-        logdir = os.path.expanduser(LOGFILEDIR)
+        receive_thread = threading.Thread(target=self.__client.start)
+        receive_thread.start()
+        self.__is_running = True
+        statistic_filename = str(self.__room_id) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
+        log_dir = os.path.expanduser(LogFilePath_)
         block_id = 0
-        logfile = open(logdir + statistic_filename, 'w')
+        logfile = open(log_dir + statistic_filename, 'w')
         logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻\n")
-        while self.__deprecated:
+        while not self.__should_stop:
             self.danmuCounter.add_block()
             block_start_time = int(time.time())  # For record
-            block_end_time = start_time + ANALYSIS_DURATION_ * (block_id + 1)  # For calculating sleeping_time
+            block_end_time = start_time + Block_Size_In_Second_ * (block_id + 1)  # For calculating sleeping_time
             sleep_time = block_end_time - time.time()
-            print('{}\'s wait time is :{}'.format(self.name, sleep_time))
+            print('{}\'s wait time is :{}'.format(self.__name, sleep_time))
             time.sleep(sleep_time)
 
             count_res = (self.danmuCounter.get_count())
             try:
                 logfile.write("{},{},{},{},{},{}\n".format(block_start_time, block_id, *count_res))
-                print("{}'s logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}, audition:{}"
-                      .format(self.name, block_start_time, block_id, *count_res))
+                print("{}'s logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}"
+                      .format(self.__name, block_start_time, block_id, *count_res))
                 logfile.flush()
             except Exception as e:
-                print(e)
+                print("inside while loop in gan: {}".format(e))
 
-            print('{}\'s current block_id is {}'.format(self.name, block_id))
-            if block_id >= 3:
+            print('{}\'s current block_id is {}'.format(self.__name, block_id))
+
+            if Record_Mode_ and block_id >= 3:
                 if self.danmuCounter.DouyuList[block_id - 1] > 1:
                     l_count = self.danmuCounter.get_count(block_id - 1)
                     saved_video_name = '{}_douyu{}_block{}to{}_lucky{}_triple{}' \
@@ -120,20 +150,14 @@ class DanmuThread(threading.Thread):
                     saved_video_name = '{}_score{}_block{}to{}_douyu{}_triple{}_lucky{}' \
                         .format(self.name, self.danmuCounter.get_score(block_id - 1), l_count.douyu, block_id - 3,
                                 block_id, l_count.douyu, l_count.triple, l_count.lucky)
+
                     threading.Thread(target=record.combine_block,
                                      args=(record_id, block_id - 3, block_id, saved_video_name)).start()
 
-                # if douyu[-3] <= 1 and score_dict[-3] < THRESHOLD:
-                    # save the clip but not combine it in case of use
                 threading.Thread(target=record.delete_block, args=(record_id, block_id - 3, block_id - 3)).start()
             block_id += 1
+        self.__is_running = False
         logfile.close()
-        print("===========Thread on {} ends===========".format(self.name))
-        f.write("===========DanmuThread on {} ends===========\n".format(self.name))
+        print("===========Thread on {} ends===========".format(self.__name))
+        f.write("===========DanmuThread on {} ends===========\n".format(self.__name))
         f.close()
-
-    def stop(self):
-        self.__deprecated = True
-        if self.__client:
-            self.__client.deprecated = True
-        record.stop_record(self.__record_id)
