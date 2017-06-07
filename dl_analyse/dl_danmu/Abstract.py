@@ -14,7 +14,7 @@ class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
-        self.room_id = room_id
+        self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
         self.anchorStatusRescanTime = anchorStatusRescanTime
@@ -27,18 +27,18 @@ class AbstractDanMuClient(object):
         self.countDanmuFn = count_danmu_fn
 
     def start(self):
-        print("===========Socket thread starts===========".format(self.name))
+        print("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
             try:
                 # not stopped by outer client
-                while not self.deprecated:
-                    # if online then break
-                    if self.get_live_status(): break
-                    # if offline wait for sometime
-                    time.sleep(self.anchorStatusRescanTime)
-                # if continued by outer client, then stop this function
-                else:
-                    break
+                # while not self.deprecated:
+                #     # if online then break
+                #     if self.get_live_status(): break
+                #     # if offline wait for sometime
+                #     time.sleep(self.anchorStatusRescanTime)
+                # # if continued by outer client, then stop this function
+                # else:
+                #     break
                 danmuSocketInfo, roomInfo = self._prepare_env()
                 if self.danmuSocket: self.danmuSocket.close()
                 self.danmuWaitTime = -1

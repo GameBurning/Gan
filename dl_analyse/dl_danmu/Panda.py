@@ -23,22 +23,28 @@ class _socket(socket.socket):
 class PandaDanMuClient(AbstractDanMuClient):
     # return if the room is Online
     def get_live_status(self):
-        params = {
-            'roomid': self.room_id,
-            'pub_key': '',
-            '_': int(time.time()), }
-        j = requests.get('http://www.panda.tv/api_room', params).json()['data']
-        return j['videoinfo']['status'] == '2'
+        try:
+            j = requests.get('http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
+                             + str(self.roomID), timeout=5).json()
+        except:
+            print(self.name + " timeout")
+            return False
+        try:
+            return j['data']['roominfo']['status'] == '2'
+        except json.decoder.JSONDecodeError as e:
+            print("Inside Panda get_live Function: {}. Json is {}".format(e, j))
+            return False
+        except Exception as e:
+            print("Inside Panda get_live Function:{}. Json is {}".format(e))
 
     # return (danmuSocketInfo), roomInfo
     def _prepare_env(self):
-        roomId = self.url.split('/')[-1] or self.url.split('/')[-2]
-        url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
+        url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(self.roomID, str(int(time.time())))
         roomInfo = requests.get(url).json()
         url = 'http://api.homer.panda.tv/chatroom/getinfo'
         params = {
             'rid': roomInfo['data']['rid'],
-            'roomid': roomId,
+            'roomid': self.roomID,
             'retry': 0,
             'sign': roomInfo['data']['sign'], 
             'ts': roomInfo['data']['ts'],
@@ -81,9 +87,8 @@ class PandaDanMuClient(AbstractDanMuClient):
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     #self.msgPipe.append(msg)
                     if msg['MsgType'] == 'danmu':
-                        print("Di Zi Shi Beauty")
                         self.countDanmuFn(msg['Content'])
         def heart_beat(self):
-            self.danmuSocket.push(b'\x00\x06\x00\x06')
+            self.danmuSocket.push(b'\x00\x06\x00\x00')
             time.sleep(60)
         return get_danmu, heart_beat

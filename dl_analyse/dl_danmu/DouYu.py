@@ -25,14 +25,24 @@ class _socket(socket.socket):
 class DouYuDanMuClient(AbstractDanMuClient):
     def get_live_status(self):
         url = 'http://open.douyucdn.cn/api/RoomApi/room/%s' % (
-            self.roomId)
-        j = requests.get(url).json()
-        if j.get('error') != 0 or j['data'].get('room_status') != '1': return False
-        self.roomId = j['data']['room_id']
-        return True
+            self.roomID)
+        try:
+            j = requests.get(url, timeout=5).json()
+        except:
+            print(self.name + " timeout")
+            return False
+        try:
+            if j.get('error') != 0 or j['data'].get('room_status') != '1': return False
+            # self.roomID = j['data']['room_id']
+            return True
+        except json.decoder.JSONDecodeError as e:
+            print("Inside Douyulive Function: {}. json is {}".format(e, j))
+            return False
+        except Exception as e:
+            print("Inside Douyulive Function:{}".format(e))
 
     def _prepare_env(self):
-        return ('openbarrage.douyutv.com', 8601), {'room_id': self.roomId}
+        return ('openbarrage.douyutv.com', 8601), {'room_id': self.roomID}
 
     def _init_socket(self, danmu, roomInfo):
         self.danmuSocket = _socket()
@@ -63,5 +73,5 @@ class DouYuDanMuClient(AbstractDanMuClient):
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     # Modification
                     if msg['MsgType'] == 'danmu':
-                        self.count_danmu(msg['Content'])
+                        self.countDanmuFn(msg['Content'])
         return get_danmu, keep_alive # danmu, heart
