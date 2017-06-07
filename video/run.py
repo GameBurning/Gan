@@ -129,7 +129,6 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     else:
         list_file = open(list_file_name, "w")
 
-        print("\n" + str(start_block_offset)+"\n")
         if start_block_offset != 0:
             split_video( \
                 start_file_name, \
