@@ -9,7 +9,7 @@ def start_record(roomid, platform='panda', block_size=30, port=5002):
     r = requests.post('http://127.0.0.1:{}/start'.format(port), data=para)
 
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
-    f.close()
+
     if r.json()['code'] == 0:
         print("{}'s start succeed and json info is {}".format(roomid, r.json()['info']))
         f.write("{}'s start succeed and json info is {}".format(roomid, r.json()['info']))
@@ -18,6 +18,7 @@ def start_record(roomid, platform='panda', block_size=30, port=5002):
         print("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
         f.write("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
         return -1, -1
+    f.close()
 
 
 def stop_record(record_id, port=5002):
@@ -70,7 +71,6 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
             "end_block_offset": -1}
     r = requests.post('http://127.0.0.1:{}/process'.format(port), data=para)
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
-    f.close()
     print(r.json()['info'])
     if r.json()['code'] == 0:
         print("{}'s({}) combination succeed and json info is {}".format(name, record_id, r.json()['info']))
@@ -80,6 +80,8 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
         print("{}'s({}) combination failed and json info is {}".format(name, record_id, r.json()['info']))
         f.write("{}'s({}) combination failed and json info is {}".format(name, record_id, r.json()['info']))
         return False
+    f.close()
+
 
 
 if __name__ == "__main__":
