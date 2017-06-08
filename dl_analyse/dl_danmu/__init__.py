@@ -39,10 +39,10 @@ class DanmuCounter:
                + self.LuckyList[block_id] * ScoreRule_.lucky
 
     def get_count(self, block_id=-1):
-        CountRes = namedtuple("CountRes", ["danmu", "triple", "douyu", "lucky"])
+        CountRes = namedtuple("CountRes", ["danmu", "triple", "lucky", "douyu"])
 
         return CountRes(self.DanmuList[block_id], self.TripleSixList[block_id],
-                         self.DouyuList[block_id], self.LuckyList[block_id])
+                        self.LuckyList[block_id], self.DouyuList[block_id])
 
 
 class DanmuThread(threading.Thread):
@@ -144,12 +144,14 @@ class DanmuThread(threading.Thread):
             # print('{}\'s current block_id is {}'.format(self.__name, block_id))
 
             if Record_Mode_ and block_id >= 3:
+                print('{}s douyu_list is {} and target number is {}'.format(self.__name, self.danmuCounter.DouyuList,
+                                                                            self.danmuCounter.DouyuList[block_id - 1]))
                 if self.danmuCounter.DouyuList[block_id - 1] > 1:
                     l_count = self.danmuCounter.get_count(block_id - 1)
                     saved_video_name = '{}_douyu{}_block{}to{}_lucky{}_triple{}' \
                         .format(self.name, l_count.douyu, block_id - 3, block_id, l_count.lucky, l_count.triple)
                     threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 3, block_id, saved_video_name)).start()
+                                     args=(self.__record_id, block_id - 3, block_id, saved_video_name)).start()
                 elif self.danmuCounter.get_score(block_id - 1) >= ScoreThreshold_:
                     l_count = self.danmuCounter.get_count(block_id - 1)
                     saved_video_name = '{}_score{}_block{}to{}_douyu{}_triple{}_lucky{}' \
@@ -157,9 +159,9 @@ class DanmuThread(threading.Thread):
                                 block_id, l_count.douyu, l_count.triple, l_count.lucky)
 
                     threading.Thread(target=record.combine_block,
-                                     args=(record_id, block_id - 3, block_id, saved_video_name)).start()
+                                     args=(self.__record_id, block_id - 3, block_id, saved_video_name)).start()
 
-                threading.Thread(target=record.delete_block, args=(record_id, block_id - 3, block_id - 3)).start()
+                threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3, block_id - 3)).start()
             block_id += 1
         self.__is_running = False
         logfile.close()

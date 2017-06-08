@@ -55,7 +55,7 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
     f.write('get combine command from {} and now requesting it to video server'.format(record_id))
     print('combine block from {} to {} into {}'.format(start_id, end_id, name))
     para = {'name':name, 'record_id':record_id, 'start_block_id': start_id,
-            'end_block_id': end_id, 'start_block_offset': -1,\
+            'end_block_id': end_id, 'start_block_offset': 0,\
             "end_block_offset": -1}
     r = requests.post('http://127.0.0.1:{}/process'.format(port), data=para)
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
@@ -67,7 +67,7 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
     else:
         print(r.json()['info'])
         return False
-        
-        
+
+
 if __name__ == "__main__":
     print(start_record(10455))

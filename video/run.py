@@ -32,6 +32,8 @@ REC_STATUS_ERROR = "error"
 REC_STATUS_RECORDING = "recording"
 REC_STATUS_READY = "ready"
 
+convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e $i.mov ]; then ffmpeg -y -i $i -ar 44100 $i.mov; fi; done'
+
 # Use lock to synchronize threads on writing file
 # Did not choose Queue with Producer & Customer pattern because Python3 Queue is acutally using a lock to protect q.put and q.get
 # Since our use case is simple, no need to involve extra layer of work
@@ -117,14 +119,17 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     if start_block_id > end_block_id:
         return -1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
-        if end_block_offset != -1:
-            command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
-        else:
+        if end_block_offset == -1 and start_block_offset == 0:
             copyfile(start_file_name, output_file_name)
+        else:
+            command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            process.wait()
+
     else:
         list_file = open(list_file_name, "w")
 
-        if start_block_offset != -1:
+        if start_block_offset != 0:
             split_video( \
                 start_file_name, \
                 start_block_offset, \
@@ -156,8 +161,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         list_file.close()
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    process.wait()
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process.wait()
 
     f1_1 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv";
     f1_2 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_2.flv";
@@ -231,26 +236,13 @@ def start_download(url, record_id, block_size):
 
 def worker_convert_format_in_processed_folder():
     while True:
-        time.sleep(30)
-
+        # 1 hour
+        time.sleep(3600)
         # Convert
         log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
-        p1 = subprocess.Popen('cd output/process_results; for i in *.flv; do ffmpeg -y -i $i -ar 44100 $i.mov; done', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p1 = subprocess.Popen(convert_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         p1.wait()
 
-        # Move
-        log_and_print_line("time={};event=copying_processed_video;".format(time.ctime()))
-        src_dir = output_dir+'/process_results'
-        dst_dir = output_dir+'/deleted_process_results'
-        if not os.path.exists(dst_dir):
-            os.makedirs(dst_dir)
-        p2 = subprocess.Popen('cd output/process_results; for i in *.flv; do mv $i ../deleted_process_results/$i; done', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        p2.wait()
-
-        # Delete
-        log_and_print_line("time={};event=deleting_processed_video;".format(time.ctime()))
-        p3 = subprocess.Popen('cd output/process_results; for i in *.flv; do rm $i; done', shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        p3.wait()
     return None
 
 @app.route('/start', methods=['POST'])
@@ -420,6 +412,12 @@ def append():
         return jsonify({"code": 0, "info" : "finished"}), 200
     else:
         return jsonify({"code": 1, "info" : "append fail"}), 200
+
+@app.route('/convert', methods=['POST'])
+def convert():
+    log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
+    subprocess.Popen(convert_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return jsonify({"code": 0, "record_info":"start converting"}), 200
 
 @app.route('/debug', methods=['POST'])
 def debug():
