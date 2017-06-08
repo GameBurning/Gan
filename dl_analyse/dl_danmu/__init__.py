@@ -6,6 +6,7 @@ import dl_danmu.record as record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
 from .rule import *
+from json.decoder import D
 
 
 class DanmuCounter:
@@ -88,9 +89,9 @@ class DanmuThread(threading.Thread):
         self.__should_stop = True
 
     def gan(self):
-        print("===========DanmuThread on {} starts===========".format(self.__name))
+        print("===========DanmuThread on {}({}) starts===========".format(self.__name, self.__record_id))
         f = open('danmu_log', 'a')
-        f.write("===========DanmuThread on {} starts===========\n".format(self.__name))
+        f.write("===========DanmuThread on {}({}) starts===========\n".format(self.__name, self.__record_id))
         try:
             if Record_Mode_:
                 trial_counter = 0
@@ -114,7 +115,7 @@ class DanmuThread(threading.Thread):
         except Exception as e:
             print("inside gan {}".format(e))
             self.__is_running = False
-            print("{}'s starting has error and return".format(self.__name))
+            print("{}'s({}) starting has error and return".format(self.__name, self.__record_id))
             return
         receive_thread = threading.Thread(target=self.__client.start)
         receive_thread.start()
@@ -135,8 +136,8 @@ class DanmuThread(threading.Thread):
             count_res = (self.danmuCounter.get_count())
             try:
                 logfile.write("{},{},{},{},{},{}\n".format(block_start_time, block_id, *count_res))
-                print("{}'s logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}"
-                      .format(self.__name, block_start_time, block_id, *count_res))
+                print("{}'s({}) logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}"
+                      .format(self.__name, self.__record_id, block_start_time, block_id, *count_res))
                 logfile.flush()
             except Exception as e:
                 print("inside while loop in gan: {}".format(e))
@@ -144,7 +145,8 @@ class DanmuThread(threading.Thread):
             # print('{}\'s current block_id is {}'.format(self.__name, block_id))
 
             if Record_Mode_ and block_id >= 3:
-                print('{}s douyu_list is {} and target number is {}'.format(self.__name, self.danmuCounter.DouyuList,
+                print("{}'({}) douyu_list is {} and target number is {}".format(self.__name, self.__record_id,
+                                                                                 self.danmuCounter.DouyuList,
                                                                             self.danmuCounter.DouyuList[block_id - 1]))
                 if self.danmuCounter.DouyuList[block_id - 1] > 1:
                     l_count = self.danmuCounter.get_count(block_id - 1)

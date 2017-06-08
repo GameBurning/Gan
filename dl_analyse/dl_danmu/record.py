@@ -11,10 +11,10 @@ def start_record(roomid, platform='panda', block_size=30, port=5002):
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
     f.close()
     if r.json()['code'] == 0:
-        print(r.json())
+        print("{}'s start succeed and json info is {}".format(roomid, r.json()['info']))
         return r.json()['info']['record_id'], r.json()['info']['start_time']
     else:
-        print(r.json()['info'])
+        print("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
         return -1, -1
 
 
@@ -25,10 +25,10 @@ def stop_record(record_id, port=5002):
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
     f.close()
     if r.json()['code'] == 0:
-        print("{} stop succeeds".format(record_id))
+        print("{} stop succeeds and json info is {}".format(record_id, r.json()['info']))
         return True
     else:
-        print(r.json()['info'])
+        print("{} stop failed and json info is {}".format(record_id, r.json()['info']))
         return False
 
 
@@ -43,10 +43,10 @@ def delete_block(record_id, start_id, end_id, port=5002):
     f.close()
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        print("delete successful")
+        print("{}'s delete succeed and json info is {}".format(record_id, r.json()['info']))
         return True
     else:
-        print(r.json()['info'])
+        print("{}'s delete failed and json info is {}".format(record_id, r.json()['info']))
         return False
 
 
@@ -62,10 +62,10 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
     f.close()
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        print("{}'s combination succeed".format(name))
+        print("{}'s({}) combination succeed and json info is {}".format(name, record_id, r.json()['info']))
         return True
     else:
-        print(r.json()['info'])
+        print("{}'s({}) combination failed and json info is {}".format(name, record_id, r.json()['info']))
         return False
 
 
