@@ -6,7 +6,6 @@ import dl_danmu.record as record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
 from .rule import *
-from json.decoder import JSONDecodeError
 
 
 class DanmuCounter:
