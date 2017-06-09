@@ -162,8 +162,14 @@ class DanmuThread(threading.Thread):
 
                     threading.Thread(target=record.combine_block,
                                      args=(self.__record_id, block_id - 3, block_id, saved_video_name)).start()
-
-                threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3, block_id - 3)).start()
+                if block_id == 3:
+                    if self.danmuCounter.DouyuList[block_id - 2] < 2:
+                        threading.Thread(target=record.delete_block,
+                                     args=(self.__record_id, 0, 0)).start()
+                elif self.danmuCounter.DouyuList[block_id - 4] < 2 and self.danmuCounter.DouyuList[block_id - 3] < 2 \
+                        and self.danmuCounter.DouyuList[block_id - 2] < 2:
+                    threading.Thread(target=record.delete_block,
+                                     args=(self.__record_id, block_id - 3, block_id - 3)).start()
             block_id += 1
         self.__is_running = False
         logfile.close()
