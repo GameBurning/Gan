@@ -301,8 +301,9 @@ def stop():
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
-    if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None:
-        os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
+    if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
+        # os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
+        record_info[record_id]["ffmpeg_process_handler"].kill()
         for i in range(6):
             time.sleep(0.5)
             if terminated(record_info[record_id]["ffmpeg_process_handler"]):
@@ -315,7 +316,7 @@ def stop():
         return jsonify({"code": 1, "info" : "id not in record info or process handler is None"}), 200
 
     lock.release()
-    return jsonify({"code": 1, "info" : "stop failed or already stopped"}), 200
+    return jsonify({"code": 1, "info" : "time out, stop failed or already stopped"}), 200
 
 @app.route('/delete', methods=['POST'])
 def delete():
