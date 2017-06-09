@@ -145,8 +145,8 @@ class DanmuThread(threading.Thread):
             # print('{}\'s current block_id is {}'.format(self.__name, block_id))
 
             if Record_Mode_ and block_id >= 3:
-                print("{}'({}) douyu_list is {} and target number is {}".format(self.__name, self.__record_id,
-                                                                                 self.danmuCounter.DouyuList,
+                print("{}'({}) douyu_list has {} times and target number is {}".format(self.__name, self.__record_id,
+                                                                      sum(i >= 2 for i in self.danmuCounter.DouyuList),
                                                                             self.danmuCounter.DouyuList[block_id - 1]))
                 if self.danmuCounter.DouyuList[block_id - 1] > 1:
                     l_count = self.danmuCounter.get_count(block_id - 1)
