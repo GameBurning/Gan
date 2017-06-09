@@ -67,8 +67,8 @@ def split_video(source_file, cut_offset, dst1, dst2):
     command2 = 'ffmpeg -y -ss {} -i "{}" -vcodec copy -acodec copy "{}"'.format(cut_offset, source_file, dst2)
 
     process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     process1.wait()
+    process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     process2.wait()
 
     return 0
@@ -123,8 +123,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             copyfile(start_file_name, output_file_name)
         else:
             command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            process.wait()
+            pp = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            pp.wait()
 
     else:
         list_file = open(list_file_name, "w")
@@ -161,8 +161,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         list_file.close()
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        process.wait()
+        pp = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        pp.wait()
 
     f1_1 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv";
     f1_2 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_2.flv";
