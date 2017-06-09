@@ -107,7 +107,7 @@ def append_to_processed(name, record_id, block_id, new_name):
 # offset    -1      keep whole video
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     if not os.path.exists(output_dir + "/"+record_id):
-        return -1, "no record exists"
+        return 1, "no record exists"
     if not os.path.exists(output_dir + "/"+"process_results"):
         os.makedirs(output_dir + "/"+"process_results")
 
@@ -117,7 +117,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     list_file_name = output_dir + "/"+ record_id + "/"+ name + "_" + str(int(time.time()))+ ".txt"
 
     if start_block_id > end_block_id:
-        return -1, "start_block_id > end_block_id"
+        return 1, "start_block_id > end_block_id"
     elif start_block_id == end_block_id:
         if end_block_offset == -1 and start_block_offset == 0:
             copyfile(start_file_name, output_file_name)
@@ -183,7 +183,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     except:
         pass
 
-    return None
+    return 0, "finished"
 
 def start_download(url, record_id, block_size):
     try:
@@ -363,10 +363,10 @@ def process():
     except ValueError:
         return jsonify({"code": 1, "info" : "start_block_id, end_block_id, end_block_id, end_block_offset should be integer number\n"}), 200
 
-    t = threading.Thread(target=start_process, args=[record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset])
-    t.start()
-
-    return jsonify({"code": 0, "info" : "finished"}), 200
+    res = start_process(record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset)
+    if res[0] == 0:
+        return jsonify({"code": 0, "info" : "finished"}), 200
+    else return jsonify({"code": 1, "info" : res[1]}), 200
 
 @app.route('/append', methods=['POST'])
 def append():
