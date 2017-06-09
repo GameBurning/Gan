@@ -67,8 +67,8 @@ def split_video(source_file, cut_offset, dst1, dst2):
     command2 = 'ffmpeg -y -ss {} -i "{}" -vcodec copy -acodec copy "{}"'.format(cut_offset, source_file, dst2)
 
     process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    process1.wait()
     process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process1.wait()
     process2.wait()
 
     return 0
@@ -123,8 +123,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             copyfile(start_file_name, output_file_name)
         else:
             command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
-            pp = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            pp.wait()
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     else:
         list_file = open(list_file_name, "w")
@@ -161,27 +160,26 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         list_file.close()
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
-        pp = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        pp.wait()
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     f1_1 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv";
     f1_2 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_2.flv";
     f2_1 = output_dir + "/"+ record_id+"/"+ str(end_block_id) + "_cut_1.flv";
     f2_2 = output_dir + "/"+ record_id+"/"+ str(end_block_id) + "_cut_2.flv";
 
-    try:
-        if os.path.exists(list_file_name):
-            os.remove(list_file_name)
-        if os.path.exists(f1_1):
-            os.remove(f1_1)
-        if os.path.exists(f1_2):
-            os.remove(f1_2)
-        if os.path.exists(f2_1):
-            os.remove(f2_1)
-        if os.path.exists(f2_2):
-            os.remove(f2_2)
-    except:
-        pass
+    # try:
+    #     if os.path.exists(list_file_name):
+    #         os.remove(list_file_name)
+    #     if os.path.exists(f1_1):
+    #         os.remove(f1_1)
+    #     if os.path.exists(f1_2):
+    #         os.remove(f1_2)
+    #     if os.path.exists(f2_1):
+    #         os.remove(f2_1)
+    #     if os.path.exists(f2_2):
+    #         os.remove(f2_2)
+    # except:
+    #     pass
 
     return 0, "finished"
 
@@ -195,48 +193,68 @@ def start_download(url, record_id, block_size):
 
     command = 'ffmpeg -y -i "' + url +'" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "'+ output_dir +"/"+record_id+"/" +'%d.flv"'
 
+    print("start download with command: {}".format(command))
+
     log_and_print_line("time={}; ffmpeg_command={}".format(time.ctime(), command))
 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = process
+    record_info[record_id]["PID"] = record_info[record_id]["ffmpeg_process_handler"].pid
     lock.release()
 
-    for line in iter(process.stderr.readline, b''):
-        stdline = line.decode("utf-8")
-        if "Press [q] to stop" in stdline:
-            lock.acquire()
-            record_info[record_id]["status"] = REC_STATUS_RECORDING
-            record_info[record_id]["start_time"] = str(int(time.time()))
-            lock.release()
-            log_and_print_line("time={}; event=started_recording".format(time.ctime()))
-            return 0, "started"
-        elif "error" in stdline:
-            lock.acquire()
-            record_info[record_id]["status"] = REC_STATUS_READY
-            record_info[record_id]["ffmpeg_process_handler"] = None
-            lock.release()
-            log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
-            return 1, "cannot start" + stdline
+    return 0, "started"
 
-    return None
+    # while(True):
+    #     try:
+    #         outs, errs = process.communicate(timeout=15)
+    #         print(outs.decode("utf-8"))
+    #         stdline = errs.decode("utf-8")
+    #         if "Press [q] to stop" in stdline:
+    #             return 0, "started"
+    #     except subprocess.TimeoutExpired:
+    #         process.kill()
+    #         outs, errs = process.communicate()
+
+    # for line in iter(process.stderr.readline, b''):
+    #     stdline = line.decode("utf-8")
+    #     if "Press [q] to stop" in stdline:
+    #         lock.acquire()
+    #         record_info[record_id]["status"] = REC_STATUS_RECORDING
+    #         record_info[record_id]["start_time"] = str(int(time.time()))
+    #         lock.release()
+    #         log_and_print_line("time={}; event=started_recording".format(time.ctime()))
+    #         return 0, "started"
+    #     elif "error" in stdline:
+    #         lock.acquire()
+    #         record_info[record_id]["status"] = REC_STATUS_READY
+    #         record_info[record_id]["ffmpeg_process_handler"] = None
+    #         lock.release()
+    #         log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
+    #         return 1, "cannot start" + stdline
+
+    # return None
 
 
 def create_recording_with_list(urls, record_id, block_size):
-    if len(urls) == 0:
-        return 1
-    res = start_download(urls[0], record_id, block_size)
-    if res[0] == 0:
-        return res
-    else:
-        log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
-        urls.pop(0)
-        lock.acquire()
-        record_info[record_id]["status"] = REC_STATUS_READY
-        record_info[record_id]["ffmpeg_process_handler"] = None
-        lock.release()
-        return create_recording_with_list(urls, record_id, block_size)
+    # if len(urls) == 0:
+    #     return 1
+    t = threading.Thread(target=start_download, args=[urls[0], record_id, block_size])
+    t.start()
+
+    return 0, "good"
+    # res = start_download(urls[0], record_id, block_size)
+    # if res[0] == 0:
+    #     return res
+    # else:
+    #     log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
+    #     urls.pop(0)
+    #     lock.acquire()
+    #     record_info[record_id]["status"] = REC_STATUS_READY
+    #     record_info[record_id]["ffmpeg_process_handler"] = None
+    #     lock.release()
+    #     return create_recording_with_list(urls, record_id, block_size)
 
 def worker_convert_format_in_processed_folder():
     while True:
@@ -316,7 +334,7 @@ def stop():
         return jsonify({"code": 1, "info" : "id not in record info or process handler is None"}), 200
 
     lock.release()
-    return jsonify({"code": 1, "info" : "time out, stop failed or already stopped"}), 200
+    return jsonify({"code": 1, "info" : "time outstop failed or already stopped"}), 200
 
 @app.route('/delete', methods=['POST'])
 def delete():
@@ -402,7 +420,7 @@ def convert():
 def debug():
     for k in record_info:
         if "ffmpeg_process_handler" in record_info[k] and record_info[k]["ffmpeg_process_handler"] != None:
-            record_info[k]["ffmpeg PID"] = record_info[k]["ffmpeg_process_handler"].pid
+            record_info[k]["PID"] = record_info[k]["ffmpeg_process_handler"].pid
         else:
             record_info[k].pop('ffmpeg PID', None)
     return jsonify({"code": 0, "record_info":str(record_info)}), 200
