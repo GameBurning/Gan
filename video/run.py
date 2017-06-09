@@ -366,7 +366,8 @@ def process():
     res = start_process(record_id, name, start_block_id, start_block_offset, end_block_id, end_block_offset)
     if res[0] == 0:
         return jsonify({"code": 0, "info" : "finished"}), 200
-    else return jsonify({"code": 1, "info" : res[1]}), 200
+    else:
+        return jsonify({"code": 1, "info" : res[1]}), 200
 
 @app.route('/append', methods=['POST'])
 def append():
