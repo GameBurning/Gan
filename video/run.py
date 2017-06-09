@@ -203,7 +203,6 @@ def start_download(url, record_id, block_size):
     record_info[record_id]["ffmpeg_process_handler"] = process
     record_info[record_id]["PID"] = record_info[record_id]["ffmpeg_process_handler"].pid
     record_info[record_id]["status"] = REC_STATUS_RECORDING
-    record_info[record_id]["start_time"] = str(int(time.time()))
     lock.release()
 
     return 0, "started"
@@ -307,7 +306,12 @@ def start():
         "ffmpeg_process_handler" : None \
     }
 
+
     res = create_recording_with_list(urls, record_id, block_size)
+
+    # should delete later
+    time.sleep(2)
+    record_info[record_id]["start_time"] = str(int(time.time()))
 
     if res[0] != 0:
         return jsonify({"code": 1, "info" : "can not get streaming data :" + res[1]}), 200
