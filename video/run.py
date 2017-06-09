@@ -66,8 +66,8 @@ def split_video(source_file, cut_offset, dst1, dst2):
     command1 = 'ffmpeg -y -i "{}" -vcodec copy -acodec copy -t {} "{}"'.format(source_file, cut_offset, dst1)
     command2 = 'ffmpeg -y -ss {} -i "{}" -vcodec copy -acodec copy "{}"'.format(cut_offset, source_file, dst2)
 
-    process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process1 = subprocess.Popen(command1, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process2 = subprocess.Popen(command2, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     process1.wait()
     process2.wait()
 
@@ -91,7 +91,7 @@ def append_to_processed(name, record_id, block_id, new_name):
 
     command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
-    p = subprocess.Popen(command, shell=True)
+    p = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     p.wait()
 
     try:
@@ -123,7 +123,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             copyfile(start_file_name, output_file_name)
         else:
             command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
-            process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             process.wait()
 
     else:
@@ -161,7 +161,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         list_file.close()
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         process.wait()
 
     f1_1 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv";
@@ -187,52 +187,56 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
 def start_download(url, record_id, block_size):
     try:
-        os.makedirs(output_dir + "/"+record_id)
+        if not os.path.exists(output_dir + "/"+record_id):
+            os.makedirs(output_dir + "/"+record_id)
     except OSError:
-        print("cannot make dir : " + output_dir + "/"+record_id)
-        return
+        log_and_print_line("time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
+        return 1, "error when mkdir"
 
     command = 'ffmpeg -y -i "' + url +'" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "'+ output_dir +"/"+record_id+"/" +'%d.flv"'
+
     log_and_print_line("time={}; ffmpeg_command={}".format(time.ctime(), command))
 
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
     lock.acquire()
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     record_info[record_id]["ffmpeg_process_handler"] = process
     lock.release()
 
-    # Poll process for new output until finished
-    while True:
-        nextline = process.stdout.readline().decode("utf-8")
-        sys.stdout.write(nextline)
-        sys.stdout.flush()
-
-        if nextline == '' and terminated(process):
-            lock.acquire()
-            # Stopped by "/stop" endpoint
-            if record_info[record_id]["status"] == REC_STATUS_STOPPED:
-                record_info.pop(record_id, None)
-            else:
-                record_info[record_id]["status"] = REC_STATUS_ERROR
-                record_info[record_id]["ffmpeg_process_handler"] = None
-            lock.release()
-            break
-
-        if "error" in nextline:
-            print("error in getting streaming data...")
-            lock.acquire()
-            record_info[record_id]["status"] = REC_STATUS_READY
-            record_info[record_id]["ffmpeg_process_handler"] = None
-            lock.release()
-            break
-
-        if "Press [q] to stop" in nextline:
-            print("..........starting recording id : " + str(record_id))
+    for line in iter(process.stderr.readline, b''):
+        stdline = line.decode("utf-8")
+        if "Press [q] to stop" in stdline:
             lock.acquire()
             record_info[record_id]["status"] = REC_STATUS_RECORDING
             record_info[record_id]["start_time"] = str(int(time.time()))
             lock.release()
+            log_and_print_line("time={}; event=started_recording".format(time.ctime()))
+            return 0, "started"
+        elif "error" in stdline:
+            lock.acquire()
+            record_info[record_id]["status"] = REC_STATUS_READY
+            record_info[record_id]["ffmpeg_process_handler"] = None
+            lock.release()
+            log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
+            return 1, "cannot start" + stdline
 
     return None
+
+
+def create_recording_with_list(urls, record_id, block_size):
+    if len(urls) == 0:
+        return 1
+    res = start_download(urls[0], record_id, block_size)
+    if res[0] == 0:
+        return res
+    else:
+        log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
+        urls.pop(0)
+        lock.acquire()
+        record_info[record_id]["status"] = REC_STATUS_READY
+        record_info[record_id]["ffmpeg_process_handler"] = None
+        lock.release()
+        return create_recording_with_list(urls, record_id, block_size)
 
 def worker_convert_format_in_processed_folder():
     while True:
@@ -240,7 +244,7 @@ def worker_convert_format_in_processed_folder():
         time.sleep(3600)
         # Convert
         log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
-        p1 = subprocess.Popen(convert_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p1 = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         p1.wait()
 
     return None
@@ -280,44 +284,15 @@ def start():
     record_info[record_id] = { \
         "start_time" : "", \
         "status" : REC_STATUS_READY, \
-        "thread": None, \
         "ffmpeg_process_handler" : None \
     }
 
-    res = create_recording_thread(urls, record_id, block_size)
+    res = create_recording_with_list(urls, record_id, block_size)
 
-    if res != 0:
-        return jsonify({"code": 1, "info" : "can not get streaming data"}), 200
+    if res[0] != 0:
+        return jsonify({"code": 1, "info" : "can not get streaming data :" + res[1]}), 200
 
     return jsonify({"code": 0, "info" : {'record_id' : record_id, 'start_time' : record_info[record_id]["start_time"] }}), 200
-
-def create_recording_thread(urls, record_id, block_size):
-    if len(urls) == 0:
-        return 1
-    t = threading.Thread(target=start_download, args=[urls[0], record_id, block_size])
-    record_info[record_id]["thread"] = t
-    t.start()
-
-    while(True):
-        lock.acquire()
-        status = record_info[record_id]["status"]
-        start_time = record_info[record_id]["start_time"]
-        lock.release()
-
-        if status == REC_STATUS_ERROR:
-            print("Streaming download fail, try next url...")
-            urls.pop(0)
-            lock.acquire()
-            record_info[record_id]["status"] = REC_STATUS_READY
-            record_info[record_id]["thread"] = None
-            record_info[record_id]["ffmpeg_process_handler"] = None
-            lock.release()
-            return create_recording_thread(urls, record_id, block_size)
-        elif status == REC_STATUS_RECORDING:
-            break;
-        time.sleep(1)
-
-    return 0
 
 @app.route('/stop', methods=['POST'])
 def stop():
@@ -331,7 +306,7 @@ def stop():
         for i in range(6):
             time.sleep(0.5)
             if terminated(record_info[record_id]["ffmpeg_process_handler"]):
-                log_and_print_line("record_id={}; event=stop_successfully;".format(record_id))
+                log_and_print_line("time={}; record_id={}; event=stop_successfully;".format(time.ctime(),record_id))
                 record_info[record_id]["status"] = REC_STATUS_STOPPED
                 lock.release()
                 return jsonify({"code": 0, "info" : REC_STATUS_STOPPED}), 200
@@ -339,6 +314,7 @@ def stop():
         lock.release()
         return jsonify({"code": 1, "info" : "id not in record info or process handler is None"}), 200
 
+    lock.release()
     return jsonify({"code": 1, "info" : "stop failed or already stopped"}), 200
 
 @app.route('/delete', methods=['POST'])
@@ -352,17 +328,17 @@ def delete():
     except ValueError:
         return jsonify({"code": 1, "info" : "start_block_id, end_block_id should be integer number\n"}), 200
 
-    if int(start_block_id) > int(end_block_id):
-        return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
-
     if record_id == -1:
         return jsonify({"code": 1, "info" : "need record_id"}), 200
+
+    if int(start_block_id) > int(end_block_id):
+        return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
     for i in range(int(start_block_id), int(end_block_id)+1):
         try:
             os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
         except:
-            log_and_print_line("event=delete_fail; record_id={}; block_id={};".format(record_id, i))
+            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={};".format(time.ctime(), record_id, i))
             pass
 
     return jsonify({"code": 0, "info" : "deleted"}), 200
@@ -408,15 +384,16 @@ def append():
     if new_name == -1:
         return jsonify({"code": 1, "info" : "need new_name"}), 200
 
-    if append_to_processed(name, record_id, block_id, new_name) == 0:
-        return jsonify({"code": 0, "info" : "finished"}), 200
-    else:
-        return jsonify({"code": 1, "info" : "append fail"}), 200
+
+    t = threading.Thread(target=append_to_processed, args=[name, record_id, block_id, new_name])
+    t.start()
+
+    return jsonify({"code": 0, "info" : "finished"}), 200
 
 @app.route('/convert', methods=['POST'])
 def convert():
     log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
-    subprocess.Popen(convert_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start converting"}), 200
 
 @app.route('/debug', methods=['POST'])
