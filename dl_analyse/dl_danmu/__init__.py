@@ -88,9 +88,9 @@ class DanmuThread(threading.Thread):
         self.__should_stop = True
 
     def gan(self):
-        print("===========DanmuThread on {}({}) starts===========".format(self.__name, self.__record_id))
+        print("===========DanmuThread on {} starts===========".format(self.__name, self.__room_id))
         f = open('danmu_log', 'a')
-        f.write("===========DanmuThread on {}({}) starts===========\n".format(self.__name, self.__record_id))
+        f.write("===========DanmuThread on {}({}) starts===========\n".format(self.__name, self.__room_id))
         try:
             if Record_Mode_:
                 trial_counter = 0
@@ -116,6 +116,7 @@ class DanmuThread(threading.Thread):
             self.__is_running = False
             print("{}'s({}) starting has error and return".format(self.__name, self.__record_id))
             return
+        f.write("===========record id of {} is {} starts===========\n".format(self.__name, self.__record_id))
         receive_thread = threading.Thread(target=self.__client.start)
         receive_thread.start()
         self.__is_running = True
