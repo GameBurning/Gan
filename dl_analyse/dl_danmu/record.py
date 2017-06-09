@@ -2,7 +2,7 @@ import requests
 import time
 
 
-def start_record(roomid, platform='panda', block_size=30, port=5002):
+def start_record(roomid, platform='panda', block_size=45, port=5002):
     f = open('danmu_log', 'a')
     f.write('get start command from {} and now requesting it to video server\n'.format(roomid))
     para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
