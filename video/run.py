@@ -202,6 +202,8 @@ def start_download(url, record_id, block_size):
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = process
     record_info[record_id]["PID"] = record_info[record_id]["ffmpeg_process_handler"].pid
+    record_info[record_id]["status"] = REC_STATUS_RECORDING
+    record_info[record_id]["start_time"] = str(int(time.time()))
     lock.release()
 
     return 0, "started"
@@ -243,7 +245,7 @@ def create_recording_with_list(urls, record_id, block_size):
     t = threading.Thread(target=start_download, args=[urls[0], record_id, block_size])
     t.start()
 
-    return 0, "good"
+    return 0, "started"
     # res = start_download(urls[0], record_id, block_size)
     # if res[0] == 0:
     #     return res
