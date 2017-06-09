@@ -4,7 +4,7 @@ import time
 
 def start_record(roomid, platform='panda', block_size=30, port=5002):
     f = open('danmu_log', 'a')
-    f.write('get start command from {} and now requesting it to video server'.format(roomid))
+    f.write('get start command from {} and now requesting it to video server\n'.format(roomid))
     para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
     r = requests.post('http://127.0.0.1:{}/start'.format(port), data=para)
 
@@ -12,11 +12,11 @@ def start_record(roomid, platform='panda', block_size=30, port=5002):
 
     if r.json()['code'] == 0:
         print("{}'s start succeed and json info is {}".format(roomid, r.json()['info']))
-        f.write("{}'s start succeed and json info is {}".format(roomid, r.json()['info']))
+        f.write("{}'s start succeed and json info is {}\n".format(roomid, r.json()['info']))
         return r.json()['info']['record_id'], r.json()['info']['start_time']
     else:
         print("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
-        f.write("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
+        f.write("{}'s start failed and json info is {}\n".format(roomid, r.json()['info']))
         return -1, -1
     f.close()
 
@@ -28,11 +28,11 @@ def stop_record(record_id, port=5002):
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
     if r.json()['code'] == 0:
         print("{} stop succeeds and json info is {}".format(record_id, r.json()['info']))
-        f.write("{} stop succeeds and json info is {}".format(record_id, r.json()['info']))
+        f.write("{} stop succeeds and json info is {}\n".format(record_id, r.json()['info']))
         return True
     else:
         print("{} stop failed and json info is {}".format(record_id, r.json()['info']))
-        f.write("{} stop failed and json info is {}".format(record_id, r.json()['info']))
+        f.write("{} stop failed and json info is {}\n".format(record_id, r.json()['info']))
         return False
     f.close()
 
@@ -50,19 +50,19 @@ def delete_block(record_id, start_id, end_id, port=5002):
 
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        print("{}'s delete succeed and json info is {}".format(record_id, r.json()['info']))
-        f.write("{}'s delete succeed and json info is {}".format(record_id, r.json()['info']))
+        print("{}'s delete succeed and json info is {}\n".format(record_id, r.json()['info']))
+        f.write("{}'s delete succeed and json info is {}\n".format(record_id, r.json()['info']))
         return True
     else:
-        print("{}'s delete failed and json info is {}".format(record_id, r.json()['info']))
-        f.write("{}'s delete failed and json info is {}".format(record_id, r.json()['info']))
+        print("{}'s delete failed and json info is {}\n".format(record_id, r.json()['info']))
+        f.write("{}'s delete failed and json info is {}\n".format(record_id, r.json()['info']))
         return False
     f.close()
 
 
 def combine_block(record_id, start_id, end_id, name, port=5002):
     f = open('danmu_log', 'a')
-    f.write('get combine command from {} to combine {} to {} and now requesting it to video server'.format(record_id,
+    f.write('get combine command from {} to combine {} to {} and now requesting it to video server\n'.format(record_id,
                                                                                                            start_id,
                                                                                                            end_id))
     print('combine block from {} to {} into {}'.format(start_id, end_id, name))
@@ -73,12 +73,12 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
     print(r.json()['info'])
     if r.json()['code'] == 0:
-        print("{}'s({}) combination succeed and json info is {}".format(name, record_id, r.json()['info']))
-        f.write("{}'s({}) combination succeed and json info is {}".format(name, record_id, r.json()['info']))
+        print("{}'s({}) combination succeed and json info is {}\n".format(name, record_id, r.json()['info']))
+        f.write("{}'s({}) combination succeed and json info is {}\n".format(name, record_id, r.json()['info']))
         return True
     else:
-        print("{}'s({}) combination failed and json info is {}".format(name, record_id, r.json()['info']))
-        f.write("{}'s({}) combination failed and json info is {}".format(name, record_id, r.json()['info']))
+        print("{}'s({}) combination failed and json info is {}\n".format(name, record_id, r.json()['info']))
+        f.write("{}'s({}) combination failed and json info is {}\n".format(name, record_id, r.json()['info']))
         return False
     f.close()
 
