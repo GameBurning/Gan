@@ -62,6 +62,10 @@ def before():
 def terminated(process):
     return process.poll() is not None
 
+def readFFmpegPipe(process):
+    for line in iter(process.stderr.readline, b''):
+        pass
+
 def split_video(source_file, cut_offset, dst1, dst2):
     command1 = 'ffmpeg -y -i "{}" -vcodec copy -acodec copy -t {} "{}"'.format(source_file, cut_offset, dst1)
     command2 = 'ffmpeg -y -ss {} -i "{}" -vcodec copy -acodec copy "{}"'.format(cut_offset, source_file, dst2)
@@ -167,19 +171,19 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     f2_1 = output_dir + "/"+ record_id+"/"+ str(end_block_id) + "_cut_1.flv";
     f2_2 = output_dir + "/"+ record_id+"/"+ str(end_block_id) + "_cut_2.flv";
 
-    # try:
-    #     if os.path.exists(list_file_name):
-    #         os.remove(list_file_name)
-    #     if os.path.exists(f1_1):
-    #         os.remove(f1_1)
-    #     if os.path.exists(f1_2):
-    #         os.remove(f1_2)
-    #     if os.path.exists(f2_1):
-    #         os.remove(f2_1)
-    #     if os.path.exists(f2_2):
-    #         os.remove(f2_2)
-    # except:
-    #     pass
+    try:
+        if os.path.exists(list_file_name):
+            os.remove(list_file_name)
+        if os.path.exists(f1_1):
+            os.remove(f1_1)
+        if os.path.exists(f1_2):
+            os.remove(f1_2)
+        if os.path.exists(f2_1):
+            os.remove(f2_1)
+        if os.path.exists(f2_2):
+            os.remove(f2_2)
+    except:
+        pass
 
     return 0, "finished"
 
@@ -197,7 +201,7 @@ def start_download(url, record_id, block_size):
 
     log_and_print_line("time={}; ffmpeg_command={}".format(time.ctime(), command))
 
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    process = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
 
     lock.acquire()
     record_info[record_id]["ffmpeg_process_handler"] = process
@@ -205,57 +209,48 @@ def start_download(url, record_id, block_size):
     record_info[record_id]["status"] = REC_STATUS_RECORDING
     lock.release()
 
-    return 0, "started"
+    for line in iter(process.stderr.readline, b''):
+        stdline = line.decode("utf-8")
+        if "Press [q] to stop" in stdline:
+            lock.acquire()
+            record_info[record_id]["status"] = REC_STATUS_RECORDING
+            record_info[record_id]["start_time"] = str(int(time.time()))
+            lock.release()
+            log_and_print_line("time={}; event=started_recording".format(time.ctime()))
+            t = threading.Thread(target=readFFmpegPipe, args=[process])
+            t.start()
+            return 0, "started"
+        elif "error" in stdline:
+            lock.acquire()
+            record_info[record_id]["status"] = REC_STATUS_READY
+            record_info[record_id]["ffmpeg_process_handler"] = None
+            lock.release()
+            log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
+            t = threading.Thread(target=readFFmpegPipe, args=[process])
+            t.start()
+            return 1, "cannot start" + stdline
 
-    # while(True):
-    #     try:
-    #         outs, errs = process.communicate(timeout=15)
-    #         print(outs.decode("utf-8"))
-    #         stdline = errs.decode("utf-8")
-    #         if "Press [q] to stop" in stdline:
-    #             return 0, "started"
-    #     except subprocess.TimeoutExpired:
-    #         process.kill()
-    #         outs, errs = process.communicate()
-
-    # for line in iter(process.stderr.readline, b''):
-    #     stdline = line.decode("utf-8")
-    #     if "Press [q] to stop" in stdline:
-    #         lock.acquire()
-    #         record_info[record_id]["status"] = REC_STATUS_RECORDING
-    #         record_info[record_id]["start_time"] = str(int(time.time()))
-    #         lock.release()
-    #         log_and_print_line("time={}; event=started_recording".format(time.ctime()))
-    #         return 0, "started"
-    #     elif "error" in stdline:
-    #         lock.acquire()
-    #         record_info[record_id]["status"] = REC_STATUS_READY
-    #         record_info[record_id]["ffmpeg_process_handler"] = None
-    #         lock.release()
-    #         log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
-    #         return 1, "cannot start" + stdline
-
-    # return None
+    t = threading.Thread(target=readFFmpegPipe, args=[process])
+    t.start()
+    return None
 
 
 def create_recording_with_list(urls, record_id, block_size):
-    # if len(urls) == 0:
-    #     return 1
-    t = threading.Thread(target=start_download, args=[urls[0], record_id, block_size])
-    t.start()
+    if len(urls) == 0:
+        return 1
 
-    return 0, "started"
-    # res = start_download(urls[0], record_id, block_size)
-    # if res[0] == 0:
-    #     return res
-    # else:
-    #     log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
-    #     urls.pop(0)
-    #     lock.acquire()
-    #     record_info[record_id]["status"] = REC_STATUS_READY
-    #     record_info[record_id]["ffmpeg_process_handler"] = None
-    #     lock.release()
-    #     return create_recording_with_list(urls, record_id, block_size)
+    res = start_download(urls[0], record_id, block_size)
+
+    if res[0] == 0:
+        return res
+    else:
+        log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
+        urls.pop(0)
+        lock.acquire()
+        record_info[record_id]["status"] = REC_STATUS_READY
+        record_info[record_id]["ffmpeg_process_handler"] = None
+        lock.release()
+        return create_recording_with_list(urls, record_id, block_size)
 
 def worker_convert_format_in_processed_folder():
     while True:
