@@ -220,7 +220,7 @@ def start_download(url, record_id, block_size):
             t = threading.Thread(target=readFFmpegPipe, args=[process])
             t.start()
             return 0, "started"
-        elif "error" in stdline:
+        elif ("error" in stdline) or ("Error" in stdline) or ("ERROR" in stdline):
             lock.acquire()
             record_info[record_id]["status"] = REC_STATUS_READY
             record_info[record_id]["ffmpeg_process_handler"] = None
