@@ -112,8 +112,6 @@ def append_to_processed(name, record_id, block_id, new_name):
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     if not os.path.exists(output_dir + "/"+record_id):
         return 1, "no record exists"
-    if not os.path.exists(output_dir + "/"+"process_results"):
-        os.makedirs(output_dir + "/"+"process_results")
 
     output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
     start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
@@ -128,6 +126,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         else:
             command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
             process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            process.wait()
 
     else:
         list_file = open(list_file_name, "w")
@@ -165,6 +164,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        process.wait()
 
     f1_1 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_1.flv";
     f1_2 = output_dir + "/"+ record_id+"/"+ str(start_block_id) + "_cut_2.flv";
@@ -220,7 +220,7 @@ def start_download(url, record_id, block_size):
             t = threading.Thread(target=readFFmpegPipe, args=[process])
             t.start()
             return 0, "started"
-        elif "error" in stdline:
+        elif ("error" in stdline) or ("Error" in stdline) or ("ERROR" in stdline):
             lock.acquire()
             record_info[record_id]["status"] = REC_STATUS_READY
             record_info[record_id]["ffmpeg_process_handler"] = None
@@ -429,6 +429,8 @@ def debug():
 def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+    if not os.path.exists(output_dir + "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"process_results")
     t = threading.Thread(target=worker_convert_format_in_processed_folder, args=[])
     t.start()
     app.run(port=5002)
