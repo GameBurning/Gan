@@ -114,7 +114,7 @@ class PandaDanMuClient(AbstractDanMuClient):
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     if msg['MsgType'] == 'danmu':
-                        print(msg['Content'])
+                        print(self.name, msg['Content'])
                         self.countDanmuFn(msg['Content'])
         def heart_beat(self):
             self.danmuSocket.push(b'\x00\x06\x00\x06')
