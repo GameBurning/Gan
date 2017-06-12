@@ -78,6 +78,7 @@ class PandaDanMuClient():
                 socketPort = int(chatAddr.split(':')[1])
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.connect((socketIP, socketPort))
+                print('I am here 1')
                 rid = str(chatInfo['data']['rid']).encode('utf-8')
                 appid = str(chatInfo['data']['appid']).encode('utf-8')
                 authtype = str(chatInfo['data']['authType']).encode('utf-8')
@@ -88,11 +89,13 @@ class PandaDanMuClient():
                 msgLen = len(msg)
                 sendMsg = b'\x00\x06\x00\x02' + int.to_bytes(msgLen, 2, 'big') + msg
                 s.sendall(sendMsg)
+                print('I am here 2')
                 recvMsg = s.recv(CHECK_LEN)
                 if recvMsg == FIRST_RPS:
                     print('成功连接弹幕服务器')
                     recvLen = int.from_bytes(s.recv(2), 'big')
                     s.recv(recvLen)
+                    print('I am here 3')
 
                 def keepalive():
                     while not self.deprecated:
@@ -104,7 +107,9 @@ class PandaDanMuClient():
 
                 while not self.deprecated:
                     # print('================receive messages=================')
+                    print('I am here 4')
                     recvMsg = s.recv(CHECK_LEN)
+                    print('I am here 5')
                     if recvMsg == RECVMSG:
                         recvLen = int.from_bytes(s.recv(2), 'big')
                         recvMsg = s.recv(recvLen)  # ack:0
