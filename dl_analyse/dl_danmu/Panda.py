@@ -51,6 +51,21 @@ class PandaDanMuClient():
         self.danmuProcess = None
         self.countDanmuFn = count_danmu_fn
 
+    def get_live_status(self):
+        try:
+            j = requests.get('http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
+                             + str(self.roomID), timeout=5).json()
+        except:
+            print(self.name + " timeout")
+            return False
+        try:
+            return j['data']['roominfo']['status'] == '2'
+        except json.decoder.JSONDecodeError as e:
+            print("Inside Panda get_live Function: {}. Json is {}".format(e, j))
+            return False
+        except Exception as e:
+            print("Inside Panda get_live Function:{}. Json is {}".format(e))
+
     def start(self):
         print("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
