@@ -11,7 +11,7 @@ import os
 import json
 import signal
 from shutil import copyfile
-
+import psutil, os
 
 if str(sys.version_info[0]) != "3":
     raise "Please Use Python _3_ !!!"
@@ -33,6 +33,16 @@ REC_STATUS_RECORDING = "recording"
 REC_STATUS_READY = "ready"
 
 convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e $i.mov ]; then ffmpeg -y -i $i -ar 44100 $i.mov; fi; done'
+
+def kill_proc_tree(pid, including_parent=True):
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    for child in children:
+        child.kill()
+    gone, still_alive = psutil.wait_procs(children, timeout=5)
+    if including_parent:
+        parent.kill()
+        parent.wait(5)
 
 # Use lock to synchronize threads on writing file
 # Did not choose Queue with Producer & Customer pattern because Python3 Queue is acutally using a lock to protect q.put and q.get
@@ -322,7 +332,8 @@ def stop():
     lock.acquire()
     if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
         # os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
-        record_info[record_id]["ffmpeg_process_handler"].kill()
+        # record_info[record_id]["ffmpeg_process_handler"].kill()
+        kill_proc_tree(record_info[record_id]["PID"])
         for i in range(6):
             time.sleep(0.5)
             if terminated(record_info[record_id]["ffmpeg_process_handler"]):
