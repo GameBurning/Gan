@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 import os
 import threading
 import time
 
-import dl_danmu.record as record
+from . import record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
 from .rule import *
@@ -89,7 +90,7 @@ class DanmuThread(threading.Thread):
 
     def gan(self):
         print("===========DanmuThread on {}({}) starts===========".format(self.__name, self.__room_id))
-        f = open('danmu_log', 'a')
+        f = open('danmu_log', 'a', encoding='utf-8')
         f.write("===========DanmuThread on {}({}) starts===========\n".format(self.__name, self.__room_id))
         try:
             if Record_Mode_:
@@ -149,11 +150,11 @@ class DanmuThread(threading.Thread):
                 print("{}'({}) has {} douyu times and target number is {}".
                       format(self.__name, self.__record_id, sum(i >= 2 for i in self.__dc.DouyuList),
                              self.__dc.DouyuList[block_id - 1]))
-                if self.__dc.get_score(-1) >= ScoreThreshold_ or self.__dc.DouyuList[-1] > 1:
+                if self.__dc.get_score(-2) >= ScoreThreshold_ or self.__dc.DouyuList[-2] > 1:
                     if l_last_block_data[0]:
-                        l_c = self.__dc.get_count(block_id - 1)
+                        l_c = self.__dc.get_count(-2)
                         l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}'.\
-                            format(self.name, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
+                            format(self.__name, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
                                    l_last_block_data[2][1], self.__dc.get_score(-1)+l_last_block_data[3][1],
                                    l_last_block_data[3][2] + l_c.triple, l_last_block_data[3][3] + l_c.lucky)
                         threading.Thread(target=record.append_block,
@@ -164,9 +165,9 @@ class DanmuThread(threading.Thread):
                                           l_last_block_data[3][2] + l_c.triple,
                                           l_last_block_data[3][3] + l_c.lucky))
                     else:
-                        l_c = self.__dc.get_count(block_id - 1)
+                        l_c = self.__dc.get_count(-2)
                         l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}' \
-                            .format(self.name, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-1),
+                            .format(self.__name, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-1),
                                     l_c.triple, l_c.lucky)
                         l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                              (l_c.douyu, self.__dc.get_score(-1), l_c.triple, l_c.lucky))
