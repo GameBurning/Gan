@@ -1,8 +1,9 @@
 import time, sys, re, json
 import socket, select
-import threading
-import urllib
 import platform
+from struct import pack
+
+from .Abstract import AbstractDanMuClient
 
 import requests
 
@@ -36,7 +37,7 @@ class _socket(socket.socket):
             return ''
 
 
-class PandaDanMuClient():
+class PandaDanMuClient(AbstractDanMuClient):
     # return if the room is Online
     def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.roomID = room_id
@@ -66,104 +67,56 @@ class PandaDanMuClient():
         except Exception as e:
             print("Inside Panda get_live Function:{}. Json is {}".format(e))
 
-    def start(self):
-        print("===========Socket thread of {} starts===========".format(self.name))
-        while not self.deprecated:
-            try:
-                f = urllib.request.urlopen('http://riven.panda.tv/chatroom/getinfo?roomid=' + self.roomID)
-                data = f.read().decode('utf-8')
-                chatInfo = json.loads(data)
-                chatAddr = chatInfo['data']['chat_addr_list'][0]
-                socketIP = chatAddr.split(':')[0]
-                socketPort = int(chatAddr.split(':')[1])
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((socketIP, socketPort))
-                print('I am here 1')
-                rid = str(chatInfo['data']['rid']).encode('utf-8')
-                appid = str(chatInfo['data']['appid']).encode('utf-8')
-                authtype = str(chatInfo['data']['authType']).encode('utf-8')
-                sign = str(chatInfo['data']['sign']).encode('utf-8')
-                ts = str(chatInfo['data']['ts']).encode('utf-8')
-                msg = b'u:' + rid + b'@' + appid + b'\nk:1\nt:300\nts:' + ts \
-                      + b'\nsign:' + sign + b'\nauthtype:' + authtype
-                msgLen = len(msg)
-                sendMsg = b'\x00\x06\x00\x02' + int.to_bytes(msgLen, 2, 'big') + msg
-                s.sendall(sendMsg)
-                print('I am here 2')
-                recvMsg = s.recv(CHECK_LEN)
-                if recvMsg == FIRST_RPS:
-                    print('成功连接弹幕服务器')
-                    recvLen = int.from_bytes(s.recv(2), 'big')
-                    s.recv(recvLen)
-                    print('I am here 3')
-
-                def keepalive():
-                    while not self.deprecated:
-                        # print('================keepalive=================')
-                        s.send(KEEPALIVE)
-                        time.sleep(150)
-
-                threading.Thread(target=keepalive).start()
-
-                while not self.deprecated:
-                    # print('================receive messages=================')
-                    print('I am here 4')
-                    recvMsg = s.recv(CHECK_LEN)
-                    print('I am here 5')
-                    if recvMsg == RECVMSG:
-                        recvLen = int.from_bytes(s.recv(2), 'big')
-                        recvMsg = s.recv(recvLen)  # ack:0
-                        totalLen = int.from_bytes(s.recv(META_LEN), 'big')
-                        try:
-                            self.analyse_msg(s, totalLen)
-                        except Exception as e:
-                            pass
-            except Exception as e:
-                print(e)
-            time.sleep(1)
-            print("===========Socket thread of {} ends===========".format(self.name))
-
-    def analyse_msg(self, s, totalLen):
-        while totalLen > 0:
-            s.recv(IGNORE_LEN)
-            recvLen = int.from_bytes(s.recv(META_LEN), 'big')
-            recvMsg = s.recv(recvLen)
-            # recv the whole msg.
-            while recvLen > len(recvMsg):
-                recvMsg = b''.join(recvMsg, s.recv(recvLen - len(recvMsg)))
-            self.format_msg(recvMsg)
-            totalLen = totalLen - IGNORE_LEN - META_LEN - recvLen
-
-    def format_msg(self, recvMsg, roomid, name, osfile):
-        try:
-            jsonMsg = eval(recvMsg)
-            content = jsonMsg['data']['content']
-            if jsonMsg['type'] == DANMU_TYPE:
-                identity = jsonMsg['data']['from']['identity']
-                nickName = jsonMsg['data']['from']['nickName']
+    def _prepare_env(self):
+        roomId = self.roomID
+        url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
+        roomInfo = requests.get(url).json()
+        url = 'http://api.homer.panda.tv/chatroom/getinfo'
+        params = {
+            'rid': roomInfo['data']['rid'],
+            'roomid': roomId,
+            'retry': 0,
+            'sign': roomInfo['data']['sign'],
+            'ts': roomInfo['data']['ts'],
+            '_': int(time.time()), }
+        serverInfo = requests.get(url, params).json()['data']
+        serverAddress = serverInfo['chat_addr_list'][0].split(':')
+        return (serverAddress[0], int(serverAddress[1])), serverInfo
+    def _init_socket(self, danmu, roomInfo):
+        data = [
+            ('u', '%s@%s'%(roomInfo['rid'], roomInfo['appid'])),
+            ('k', 1),
+            ('t', 300),
+            ('ts', roomInfo['ts']),
+            ('sign', roomInfo['sign']),
+            ('authtype', roomInfo['authType']) ]
+        data = '\n'.join('%s:%s'%(k, v) for k, v in data)
+        data = (b'\x00\x06\x00\x02\x00' + pack('B', len(data)) +
+            data.encode('utf8') + b'\x00\x06\x00\x00')
+        self.danmuSocket = _socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.danmuSocket.settimeout(3)
+        self.danmuSocket.connect(danmu)
+        self.danmuSocket.push(data)
+    def _create_thread_fn(self, roomInfo):
+        def get_danmu(self):
+            if not select.select([self.danmuSocket], [], [], 1)[0]: return
+            content = self.danmuSocket.pull()
+            for msg in re.findall(b'({"type":.*?}})', content):
                 try:
-                    spIdentity = jsonMsg['data']['from']['sp_identity']
-                    if spIdentity == SP_MANAGER:
-                        nickName = '*超管*' + nickName
-                except Exception as e:
-                    print(e)
+                    msg = json.loads(msg.decode('utf8', 'ignore'))
+                    msg['NickName'] = msg.get('data', {}).get('from', {}
+                        ).get('nickName', '')
+                    msg['Content']  = msg.get('data', {}).get('content', '')
+                    msg['MsgType']  = {'1': 'danmu', '206': 'gift'
+                        }.get(msg['type'], 'other')
+                except:
                     pass
-                if identity == MANAGER:
-                    nickName = '*房管*' + nickName
-                if identity == HOSTER:
-                    nickName = '*主播*' + nickName
-                # 识别表情
-                emoji = re.match(r"(.*)\[:(.*)](.*)", content)
-                if emoji:
-                    content = emoji.group(1) + '*' + emoji.group(2) + '*' + emoji.group(3)
-                print(name + "_" + nickName + ":" + content)
-                osfile.write(content + "\n")
-                osfile.flush()
-                self.countDanmuFn(content)
-            elif jsonMsg['type'] == AUDIENCE_TYPE:
-                print('==========={}\'s 观众人数'.format(name) + content + '==========')
-            else:
-                pass
-        except Exception as e:
-            # print(recvMsg)
-            pass
+                else:
+                    self.danmuWaitTime = time.time() + self.maxNoDanMuWait
+                    if msg['MsgType'] == 'danmu':
+                        print(msg['Content'])
+                        self.countDanmuFn(msg['Content'])
+        def heart_beat(self):
+            self.danmuSocket.push(b'\x00\x06\x00\x06')
+            time.sleep(60)
+        return get_danmu, heart_beat
