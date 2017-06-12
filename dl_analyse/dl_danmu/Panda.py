@@ -1,6 +1,7 @@
 import time, sys, re, json
 import socket, select
 from struct import pack
+import urllib
 
 import requests
 
@@ -39,20 +40,23 @@ class PandaDanMuClient(AbstractDanMuClient):
 
     # return (danmuSocketInfo), roomInfo
     def _prepare_env(self):
-        url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(self.roomID, str(int(time.time())))
-        roomInfo = requests.get(url).json()
+        the_url = 'http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
+        # url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(self.roomID, str(int(time.time())))
+        f = urllib.request.urlopen(the_url + self.roomID)
+        data = f.read().decode('utf-8')
+        roomInfo = json.loads(data)
         url = 'http://api.homer.panda.tv/chatroom/getinfo'
         params = {
             'rid': roomInfo['data']['rid'],
             'roomid': self.roomID,
             'retry': 0,
-            'sign': roomInfo['data']['sign'], 
+            'sign': roomInfo['data']['sign'],
             'ts': roomInfo['data']['ts'],
             '_': int(time.time()), }
         serverInfo = requests.get(url, params).json()['data']
         serverAddress = serverInfo['chat_addr_list'][0].split(':')
+        print(serverAddress[0], int(serverAddress[1]), serverInfo)
         return (serverAddress[0], int(serverAddress[1])), serverInfo
-
 
     def _init_socket(self, danmu, roomInfo):
         data = [
@@ -69,6 +73,7 @@ class PandaDanMuClient(AbstractDanMuClient):
         self.danmuSocket.settimeout(3)
         self.danmuSocket.connect(danmu)
         self.danmuSocket.push(data)
+
     def _create_thread_fn(self, roomInfo):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return

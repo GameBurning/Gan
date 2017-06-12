@@ -53,7 +53,7 @@ class AbstractDanMuClient(object):
                 break
 
     def _socket_timeout(self, fn):
-    # if socket went wrong, reload the whole client
+        # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
             try:
                 fn(*args, **kwargs)
