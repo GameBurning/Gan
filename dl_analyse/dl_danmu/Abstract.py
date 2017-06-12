@@ -36,7 +36,7 @@ class AbstractDanMuClient(object):
                 #     if self.get_live_status(): break
                 #     # if offline wait for sometime
                 #     time.sleep(self.anchorStatusRescanTime)
-                # # if continued by outer client, then stop this function
+                # # if stopped by outer client, then stop this function
                 # else:
                 #     break
                 danmuSocketInfo, roomInfo = self._prepare_env()
