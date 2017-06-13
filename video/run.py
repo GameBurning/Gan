@@ -18,7 +18,7 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
-log_file = open("recording_log.txt", "w", 0)
+log_file = open("recording_log.txt", "w")
 log_file.write("$Process Started at : {}\n".format(time.ctime()))
 
 output_dir = "output"
@@ -51,6 +51,7 @@ def log_line(str):
     log_lock.acquire()
     try:
         log_file.write(str+'\n')
+        log_file.flush()
     except:
         pass
     log_lock.release()
