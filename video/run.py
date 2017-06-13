@@ -18,7 +18,7 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
-log_file = open("recording_log.txt", "w")
+log_file = open("recording_log.txt", "w", 0)
 log_file.write("$Process Started at : {}\n".format(time.ctime()))
 
 output_dir = "output"
@@ -330,7 +330,7 @@ def stop():
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
-    if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
+    if (record_id in record_info) and (record_info[record_id]["ffmpeg_process_handler"] != None) and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
         # os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
         # record_info[record_id]["ffmpeg_process_handler"].kill()
         kill_proc_tree(record_info[record_id]["PID"])
