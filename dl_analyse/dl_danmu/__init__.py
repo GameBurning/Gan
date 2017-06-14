@@ -75,6 +75,7 @@ class DanmuThread(threading.Thread):
     def run(self, block_size=45):
         while True:
             l_live_status = self.room_is_live()
+            print('{} is alive? {}'.format(self.__name, l_live_status))
             if self.__is_running and not l_live_status:
                 self.stop()
             elif not self.__is_running and l_live_status:
@@ -121,10 +122,10 @@ class DanmuThread(threading.Thread):
         receive_thread = threading.Thread(target=self.__client.start)
         receive_thread.start()
         self.__is_running = True
-        statistic_filename = str(self.__room_id) + "_" + self.name + "_" + time.ctime(start_time) + ".csv"
+        statistic_filename = str(self.__room_id) + "_" + self.__name + "_" + time.ctime(start_time) + ".csv"
         log_dir = os.path.expanduser(LogFilePath_)
         block_id = 0
-        logfile = open(log_dir + statistic_filename, 'w')
+        logfile = open(log_dir + self.__record_id + '/' + statistic_filename, 'w')
         logfile.write("time, block, danmu, 666, 学不来, 逗鱼时刻\n")
         l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0)) # (is_processed, old_name, (block), (d,s,t,l))
         while not self.__should_stop:

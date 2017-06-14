@@ -6,7 +6,7 @@ Lucky_ = ('学不来', '狗')
 Triple_ = ('66')
 
 # File Path
-LogFilePath_ = '~/daily_log/'
+LogFilePath_ = '~/Gan/video/output/'
 
 # URL Rules
 PlatformUrl_ = {
