@@ -23,7 +23,7 @@ def start_record(roomid, platform='panda', block_size=45, port=5002):
 
 def stop_record(record_id, port=5002):
     f = open('danmu_log', 'a')
-    f.write('get stop command from {} and now requesting it to video server'.format(record_id))
+    f.write('get stop command from {} and now requesting it to video server\n'.format(record_id))
     r = requests.post('http://127.0.0.1:{}/stop'.format(port), data={"record_id": record_id})
     f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
     if r.json()['code'] == 0:
@@ -39,7 +39,7 @@ def stop_record(record_id, port=5002):
 
 def delete_block(record_id, start_id, end_id, port=5002):
     f = open('danmu_log', 'a')
-    f.write('get delete command from {} to delete {} to {} and now requesting it to video server'.format(record_id,
+    f.write('get delete command from {} to delete {} to {} and now requesting it to video server\n'.format(record_id,
                                                                                                          start_id,
                                                                                                          end_id))
     print('delete block from {} to {}'.format(start_id, end_id))
@@ -83,16 +83,18 @@ def combine_block(record_id, start_id, end_id, name, port=5002):
 
 def append_block(record_id, block_id, old_name, new_name, port=5002):
     f = open('danmu_log', 'a')
-    f.write('get append request to append append_id {} to old_name {}').__format__(block_id, old_name)
-    print('append block from {} to {}').format(block_id, old_name)
+    f.write('get append request to append append_id {} to old_name {}'.format(block_id, old_name))
+    print('append block from {} to {}'.format(block_id, old_name))
     para = {'name': old_name, 'new_name': new_name, 'block_id': block_id, 'record_id': record_id}
     r = requests.post('http://127.0.0.1:{}/append'.format(port), data=para)
     if r.json()['code'] == 0:
         print("{}'s append succeed and json info is {}\n".format(record_id, r.json()['info']))
         f.write("{}'s append succeed and json info is {}\n".format(record_id, r.json()['info']))
+        return True
     else:
         print("{}'s append failed and json info is {}\n".format(record_id, r.json()['info']))
         f.write("{}'s append failed and json info is {}\n".format(record_id, r.json()['info']))
+        return False
     f.close()
 
 if __name__ == "__main__":
