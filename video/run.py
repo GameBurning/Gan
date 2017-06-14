@@ -123,7 +123,8 @@ def append_to_processed(name, record_id, block_id, new_name):
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     if not os.path.exists(output_dir + "/"+record_id):
         return 1, "no record exists"
-
+    if not os.path.exists(output_dir + "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"process_results")
     output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
     start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
     end_file_name = output_dir + "/"+ record_id + "/"+ str(end_block_id) + ".flv"
@@ -199,6 +200,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     return 0, "finished"
 
 def start_download(url, record_id, block_size):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     try:
         if not os.path.exists(output_dir + "/"+record_id):
             os.makedirs(output_dir + "/"+record_id)
@@ -269,8 +272,7 @@ def worker_convert_format_in_processed_folder():
         time.sleep(3600)
         # Convert
         log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
-        p1 = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        p1.wait()
+        p = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     return None
 
@@ -314,10 +316,6 @@ def start():
 
 
     res = create_recording_with_list(urls, record_id, block_size)
-
-    # should delete later
-    time.sleep(2)
-    record_info[record_id]["start_time"] = str(int(time.time()))
 
     if res[0] != 0:
         return jsonify({"code": 1, "info" : "can not get streaming data :" + res[1]}), 200
