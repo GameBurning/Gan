@@ -18,7 +18,7 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
-log_file = open("recording_log.txt", "w")
+log_file = open("recording_log_{}.txt".format(time.ctime()), "w")
 log_file.write("$Process Started at : {}\n".format(time.ctime()))
 
 output_dir = "output"
@@ -365,11 +365,13 @@ def delete():
         return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
     for i in range(int(start_block_id), int(end_block_id)+1):
+        file_name = output_dir + "/"+ record_id + "/" + str(i) + ".flv"
         try:
-            os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
-        except:
-            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={};".format(time.ctime(), record_id, i))
-            pass
+            os.remove(file_name)
+        except Exception as e:
+            files_in_dir = '; '.join(os.listdir(output_dir + "/"+ record_id))
+            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
+            return jsonify({"code": 1, "info" : "delete fail, file_name:{}, filesInDir:{}".format(file_name, files_in_dir)}), 200
 
     return jsonify({"code": 0, "info" : "deleted"}), 200
 
