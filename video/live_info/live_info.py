@@ -6,7 +6,40 @@ import re
 import hashlib
 
 def get_stream_zhanqi(room_id):
-    return []
+    stream_urls = []
+
+    api_url = "https://www.zhanqi.tv/api/static/v2.1/room/domain/" + room_id + ".json"
+    try:
+        r = requests.get("https://www.zhanqi.tv/api/static/v2.1/room/domain/{}.json".format(room_id), timeout=3)
+        if r.status_code != 200:
+            return []
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(r.text)
+
+        j = json.loads(r.text)
+        data = j['data']
+        status = data['status']
+        roomid = data['id']
+        videoId = data['videoId']
+    except:
+        return []
+
+    if status != '4':
+        raise ValueError ("The live stream is not online!")
+
+    url = "https://livedns.yfcloud.com/d?host=yfhdl.cdn.zhanqi.tv&stream={}_720p.flv".format(videoId)
+    # jump_url = "http://wshdl.load.cdn.zhanqi.tv/zqlive/{}.flv?get_url=1".format(videoId)
+    r = requests.get(url, timeout=3)
+    if r.status_code != 200:
+        return []
+
+    j = json.loads(r.text)
+    ips = j['ips']
+    for ip in ips:
+        url = "http://{}/yfhdl.cdn.zhanqi.tv/zqlive/{}_720p.flv?device=0".format(ip,videoId)
+        stream_urls.append(url)
+
+    return stream_urls
 
 def get_stream_douyu(room_id):
     stream_urls = []

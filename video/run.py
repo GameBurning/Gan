@@ -18,7 +18,7 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
-log_file = open("recording_log.txt", "w")
+log_file = open("recording_log_{}.txt".format(time.ctime()), "w")
 log_file.write("$Process Started at : {}\n".format(time.ctime()))
 
 output_dir = "output"
@@ -51,6 +51,7 @@ def log_line(str):
     log_lock.acquire()
     try:
         log_file.write(str+'\n')
+        log_file.flush()
     except:
         pass
     log_lock.release()
@@ -122,7 +123,8 @@ def append_to_processed(name, record_id, block_id, new_name):
 def start_process(record_id, name, start_block_id , start_block_offset, end_block_id, end_block_offset):
     if not os.path.exists(output_dir + "/"+record_id):
         return 1, "no record exists"
-
+    if not os.path.exists(output_dir + "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"process_results")
     output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
     start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
     end_file_name = output_dir + "/"+ record_id + "/"+ str(end_block_id) + ".flv"
@@ -198,6 +200,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
     return 0, "finished"
 
 def start_download(url, record_id, block_size):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     try:
         if not os.path.exists(output_dir + "/"+record_id):
             os.makedirs(output_dir + "/"+record_id)
@@ -242,12 +246,12 @@ def start_download(url, record_id, block_size):
 
     t = threading.Thread(target=readFFmpegPipe, args=[process])
     t.start()
-    return None
+    return 1, "Fail"
 
 
 def create_recording_with_list(urls, record_id, block_size):
     if len(urls) == 0:
-        return 1
+        return 1, "Fail"
 
     res = start_download(urls[0], record_id, block_size)
 
@@ -268,10 +272,9 @@ def worker_convert_format_in_processed_folder():
         time.sleep(3600)
         # Convert
         log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
-        p1 = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        p1.wait()
+        p = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    return None
+    return 1, "Fail"
 
 @app.route('/start', methods=['POST'])
 def start():
@@ -314,10 +317,6 @@ def start():
 
     res = create_recording_with_list(urls, record_id, block_size)
 
-    # should delete later
-    time.sleep(2)
-    record_info[record_id]["start_time"] = str(int(time.time()))
-
     if res[0] != 0:
         return jsonify({"code": 1, "info" : "can not get streaming data :" + res[1]}), 200
 
@@ -330,7 +329,7 @@ def stop():
         return jsonify({"code": 1, "info" : "need record_id"}), 200
 
     lock.acquire()
-    if record_id in record_info and record_info[record_id]["ffmpeg_process_handler"] != None and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
+    if (record_id in record_info) and (record_info[record_id]["ffmpeg_process_handler"] != None) and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
         # os.kill(record_info[record_id]["ffmpeg_process_handler"].pid, signal.SIGKILL)
         # record_info[record_id]["ffmpeg_process_handler"].kill()
         kill_proc_tree(record_info[record_id]["PID"])
@@ -365,14 +364,22 @@ def delete():
     if int(start_block_id) > int(end_block_id):
         return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
+    failed = False
+    fail_info = []
     for i in range(int(start_block_id), int(end_block_id)+1):
+        file_name = output_dir + "/"+ record_id + "/" + str(i) + ".flv"
         try:
-            os.remove(output_dir + "/"+ record_id + "/" + str(i) + ".flv")
-        except:
-            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={};".format(time.ctime(), record_id, i))
-            pass
+            os.remove(file_name)
+        except Exception as e:
+            failed = True
+            files_in_dir = '; '.join(os.listdir(output_dir + "/"+ record_id))
+            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
+            fail_info.append("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
 
-    return jsonify({"code": 0, "info" : "deleted"}), 200
+    if failed:
+        return jsonify({"code": 1, "fail_list" : fail_info}), 200
+    else :
+        return jsonify({"code": 0, "info" : "deleted"}), 200
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -415,7 +422,6 @@ def append():
         return jsonify({"code": 1, "info" : "need block_id"}), 200
     if new_name == -1:
         return jsonify({"code": 1, "info" : "need new_name"}), 200
-
 
     t = threading.Thread(target=append_to_processed, args=[name, record_id, block_id, new_name])
     t.start()
