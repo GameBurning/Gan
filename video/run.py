@@ -246,12 +246,12 @@ def start_download(url, record_id, block_size):
 
     t = threading.Thread(target=readFFmpegPipe, args=[process])
     t.start()
-    return None
+    return 1, "Fail"
 
 
 def create_recording_with_list(urls, record_id, block_size):
     if len(urls) == 0:
-        return 1
+        return 1, "Fail"
 
     res = start_download(urls[0], record_id, block_size)
 
@@ -274,7 +274,7 @@ def worker_convert_format_in_processed_folder():
         log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
         p = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    return None
+    return 1, "Fail"
 
 @app.route('/start', methods=['POST'])
 def start():
