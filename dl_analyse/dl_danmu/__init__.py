@@ -174,8 +174,9 @@ class DanmuThread(threading.Thread):
                                          args=(self.__record_id, block_id - 3, block_id, l_video_name)).start()
                 else:
                     l_last_block_data = (False, "")
-                threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3, block_id - 3)).\
-                    start()
+                if int(self.__room_id) != 10027 and int(self.__room_id) != 10029:
+                    threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3, block_id - 3)).\
+                        start()
 
             block_id += 1
         self.__is_running = False
