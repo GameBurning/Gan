@@ -364,16 +364,22 @@ def delete():
     if int(start_block_id) > int(end_block_id):
         return jsonify({"code": 1, "info" : "start_block_id should smaller or equal to end_block_id"}), 200
 
+    failed = False
+    fail_info = []
     for i in range(int(start_block_id), int(end_block_id)+1):
         file_name = output_dir + "/"+ record_id + "/" + str(i) + ".flv"
         try:
             os.remove(file_name)
         except Exception as e:
+            failed = True
             files_in_dir = '; '.join(os.listdir(output_dir + "/"+ record_id))
             log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
-            return jsonify({"code": 1, "info" : "delete fail, file_name:{}, filesInDir:{}".format(file_name, files_in_dir)}), 200
+            fail_info.append("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
 
-    return jsonify({"code": 0, "info" : "deleted"}), 200
+    if failed:
+        return jsonify({"code": 1, "fail_list" : fail_info}), 200
+    else :
+        return jsonify({"code": 0, "info" : "deleted"}), 200
 
 @app.route('/process', methods=['POST'])
 def process():
@@ -416,7 +422,6 @@ def append():
         return jsonify({"code": 1, "info" : "need block_id"}), 200
     if new_name == -1:
         return jsonify({"code": 1, "info" : "need new_name"}), 200
-
 
     t = threading.Thread(target=append_to_processed, args=[name, record_id, block_id, new_name])
     t.start()
