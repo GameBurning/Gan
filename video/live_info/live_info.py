@@ -4,6 +4,32 @@ import requests
 import pprint
 import re
 import hashlib
+from bs4 import BeautifulSoup
+
+def get_stream_huya(room_id):
+    stream_urls = []
+    # r = requests.get("http://www.huya.com/{}".format(room_id))
+    # if r.status_code != 200:
+    #     return []
+    # htmlContent = r.text
+    # soup = BeautifulSoup(htmlContent, 'html.parser')
+    # print(soup.prettify())
+    # list = soup.find_all("script")
+    # url = ""
+    #
+    # for item in list:
+    #     if "TT_ROOM_DATA" in item.text:
+    #         str = item.text
+    #         m = re.search('var TT_ROOM_DATA = (.*?);', str)
+    #         v = m.groups()
+    #         u = v[0]
+    #         j = json.loads(u)
+    #         previewUrl = j['previewUrl']
+    #         previewUrl = previewUrl.replace("_100/playlist.m3u8", "_800/playlist.m3u8")
+    #         stream_urls.append(previewUrl)
+    #         print(previewUrl)
+
+    return stream_urls
 
 def get_stream_zhanqi(room_id):
     stream_urls = []
@@ -168,7 +194,8 @@ def get_stream_panda(room_id):
 live_info_store = {
     "panda" : { "stream_url_func" : get_stream_panda },
     "douyu" : { "stream_url_func" : get_stream_douyu },
-    "zhanqi" : { "stream_url_func" : get_stream_zhanqi }
+    "zhanqi" : { "stream_url_func" : get_stream_zhanqi },
+    "huya" : {"stream_url_func" : get_stream_huya}
 }
 
 

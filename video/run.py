@@ -32,7 +32,7 @@ REC_STATUS_ERROR = "error"
 REC_STATUS_RECORDING = "recording"
 REC_STATUS_READY = "ready"
 
-convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e $i.mov ]; then ffmpeg -y -i $i -ar 44100 $i.mov; fi; done'
+convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e ../converted/$i.mov ]; then ffmpeg -y -i $i -ar 44100 ../converted/$i.mov; fi; done'
 
 def kill_proc_tree(pid, including_parent=True):
     parent = psutil.Process(pid)
@@ -125,6 +125,8 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
         return 1, "no record exists"
     if not os.path.exists(output_dir + "/"+"process_results"):
         os.makedirs(output_dir + "/"+"process_results")
+    if not os.path.exists(output_dir + "/"+"converted"):
+        os.makedirs(output_dir + "/"+"converted")
     output_file_name = output_dir + "/"+ "process_results/" + name + ".flv"
     start_file_name = output_dir + "/"+ record_id + "/"+ str(start_block_id) + ".flv"
     end_file_name = output_dir + "/"+ record_id + "/"+ str(end_block_id) + ".flv"
@@ -209,7 +211,13 @@ def start_download(url, record_id, block_size):
         log_and_print_line("time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
         return 1, "error when mkdir"
 
-    command = 'ffmpeg -y -i "' + url +'" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "'+ output_dir +"/"+record_id+"/" +'%d.flv"'
+
+    command = 'ffmpeg -y -i "' + url + '" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
+    #
+    # lock.acquire()
+    # if "huya" in record_info[record_id]["platform"]:
+    #     command = 'ffmpeg -y -i "' + url + '" -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
+    # lock.release()
 
     print("start download with command: {}".format(command))
 
@@ -311,6 +319,7 @@ def start():
     record_info[record_id] = { \
         "start_time" : "", \
         "status" : REC_STATUS_READY, \
+        "platform": _platform, \
         "ffmpeg_process_handler" : None \
     }
 
@@ -448,6 +457,8 @@ def main():
         os.makedirs(output_dir)
     if not os.path.exists(output_dir + "/"+"process_results"):
         os.makedirs(output_dir + "/"+"process_results")
+    if not os.path.exists(output_dir + "/"+"converted"):
+        os.makedirs(output_dir + "/"+"converted")
     t = threading.Thread(target=worker_convert_format_in_processed_folder, args=[])
     t.start()
     app.run(port=5002)
