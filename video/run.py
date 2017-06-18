@@ -218,13 +218,6 @@ def start_download(url, record_id, block_size):
 
 
     command = 'ffmpeg -y -i "' + url + '" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
-    #
-    # lock.acquire()
-    # if "huya" in record_info[record_id]["platform"]:
-    #     command = 'ffmpeg -y -i "' + url + '" -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
-    # lock.release()
-
-    print("start download with command: {}".format(command))
 
     log_and_print_line(record_id, "time={}; ffmpeg_command={}".format(time.ctime(), command))
 
@@ -257,6 +250,7 @@ def start_download(url, record_id, block_size):
             t.start()
             return 1, "cannot start" + stdline
 
+    log_and_print_line(record_id, "time={}; event=no std lines read".format(time.ctime()))
     t = threading.Thread(target=readFFmpegPipe, args=[process])
     t.start()
     return 1, "Fail"
