@@ -48,10 +48,11 @@ class DanmuCounter:
 
 class DanmuThread(threading.Thread):
 
-    def __init__(self, room_id, platform, name, live_status_rescan_interval=30):
+    def __init__(self, room_id, platform, name, abbr, live_status_rescan_interval=30):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
         self.__name         = name
+        self.__abbr         = abbr
         self.__platform     = platform
         self.__is_live      = False
         self.__is_running   = False
@@ -76,18 +77,9 @@ class DanmuThread(threading.Thread):
         while True:
             l_live_status = self.room_is_live()
             print('{} is alive? {}'.format(self.__name, l_live_status))
-            if self.__is_running and not l_live_status:
-                self.stop()
-            elif not self.__is_running and l_live_status:
+            if not self.__is_running and l_live_status:
                 self.gan()
             time.sleep(self.__live_status_rescan_interval)
-
-    def stop(self):
-        if self.__client:
-            self.__client.deprecated = True
-        if Record_Mode_:
-            record.stop_record(self.__record_id)
-        self.__should_stop = True
 
     def gan(self):
         print("===========DanmuThread on {}({}) starts===========".format(self.__name, self.__room_id))
@@ -136,7 +128,8 @@ class DanmuThread(threading.Thread):
             # print('{}\'s wait time is :{}'.format(self.__name, sleep_time))
             time.sleep(sleep_time)
 
-            if not os.path.isfile(log_dir + self.__record_id + '/' + block_id + '.flv'):
+            if not os.path.isfile(log_dir + self.__record_id + '/' + str(block_id) + '.flv'):
+                print("No recording file, exit")
                 break
 
             count_res = (self.__dc.get_count())
@@ -155,39 +148,40 @@ class DanmuThread(threading.Thread):
                     print("{}'({}) has {} douyu times and target number is {}".
                           format(self.__name, self.__record_id, sum(i >= 2 for i in self.__dc.DouyuList),
                                  self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.get_score(-2) >= ScoreThreshold_ or self.__dc.DouyuList[-2] > 1:
+                    if self.__dc.get_score(-2) >= ScoreThreshold_ or self.__dc.DouyuList[-2] > 2:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
                             l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}'.\
-                                format(self.__name, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
-                                       block_id, self.__dc.get_score(-1)+l_last_block_data[3][1],
+                                format(self.__abbr, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
+                                       block_id, self.__dc.get_score(-2)+l_last_block_data[3][1],
                                        l_last_block_data[3][2] + l_c.triple, l_last_block_data[3][3] + l_c.lucky)
                             threading.Thread(target=record.append_block,
                                              args=(self.__record_id, block_id, l_last_block_data[1], l_video_name))
                             l_last_block_data = (True, l_video_name, (l_last_block_data[2][0], block_id),
                                              (l_last_block_data[3][0] + l_c.douyu,
-                                              l_last_block_data[3][1] + self.__dc.get_score(-1),
+                                              l_last_block_data[3][1] + self.__dc.get_score(-2),
                                               l_last_block_data[3][2] + l_c.triple,
                                               l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
                             l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}' \
-                                .format(self.__name, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-1),
+                                .format(self.__abbr, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-2),
                                         l_c.triple, l_c.lucky)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
-                                                 (l_c.douyu, self.__dc.get_score(-1), l_c.triple, l_c.lucky))
+                                                 (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
                             threading.Thread(target=record.combine_block,
                                              args=(self.__record_id, block_id - 3, block_id, l_video_name)).start()
                     else:
                         l_last_block_data = (False, "")
-                    if int(self.__room_id) != 10027 and int(self.__room_id) != 10029:
-                        threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3, \
-                                                                           block_id - 3)).start()
+                    threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3,
+                                                                       block_id - 3)).start()
             except Exception as e:
                 f.write("In record has Exception {}".format(e))
 
             block_id += 1
         self.__is_running = False
+        if self.__client:
+            self.__client.deprecated = True
         logfile.close()
         print("===========Thread on {} ends===========".format(self.__name))
         f.write("===========DanmuThread on {} ends===========\n".format(self.__name))
