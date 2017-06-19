@@ -18,8 +18,15 @@ if str(sys.version_info[0]) != "3":
 
 app = Flask(__name__)
 
-log_file = open("recording_log_{}.txt".format(time.ctime()), "w")
-log_file.write("$Process Started at : {}\n".format(time.ctime()))
+REC_STATUS_STOPPED = "stopped"
+REC_STATUS_ERROR = "error"
+REC_STATUS_RECORDING = "recording"
+REC_STATUS_READY = "ready"
+PublicLogID = "0"
+
+public_log_file = open("recording_log_{}.txt".format(time.ctime()), "w")
+public_log_file.write("$Process Started at : {}\n".format(time.ctime()))
+log_file_store = {PublicLogID : public_log_file}
 
 output_dir = "output"
 record_info = {}
@@ -27,12 +34,13 @@ lock = threading.Lock()
 log_lock = threading.Lock()
 range_to_combined_hashtable = {}
 
-REC_STATUS_STOPPED = "stopped"
-REC_STATUS_ERROR = "error"
-REC_STATUS_RECORDING = "recording"
-REC_STATUS_READY = "ready"
-
 convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e ../converted/$i.mov ]; then ffmpeg -y -i $i -ar 44100 ../converted/$i.mov; fi; done'
+
+clean_backup_command = "rm -r output/backup/*; mkdir output/backup/process_results; mkdir output/backup/converted;"
+mov_process_command = "mv output/process_results/ output/backup/"
+mov_converted_command = "mv output/converted/ output/backup/"
+mkdir_converted_command = "mkdir output/converted"
+mkdir_process_command = "mkdir output/process_results"
 
 def kill_proc_tree(pid, including_parent=True):
     parent = psutil.Process(pid)
@@ -47,27 +55,30 @@ def kill_proc_tree(pid, including_parent=True):
 # Use lock to synchronize threads on writing file
 # Did not choose Queue with Producer & Customer pattern because Python3 Queue is acutally using a lock to protect q.put and q.get
 # Since our use case is simple, no need to involve extra layer of work
-def log_line(str):
+def log_line(record_id=PublicLogID, str = ""):
+    if record_id not in log_file_store:
+        return 1
     log_lock.acquire()
     try:
-        log_file.write(str+'\n')
-        log_file.flush()
+        log_file_store[record_id].write(str+'\n')
+        log_file_store[record_id].flush()
     except:
         pass
     log_lock.release()
+    return 0
 
-def log_and_print_line(str):
-    log_line(str)
+def log_and_print_line(record_id=PublicLogID, str = ""):
+    log_line(record_id, str)
     print(str+'\n')
 
 @app.after_request
 def after(response):
-    log_and_print_line("time={}; type=RESPONSE; method={}; url={}; status={}; response={}".format(time.ctime(),request.method,request.base_url,response.status, response.data))
+    log_and_print_line(request.form.get("record_id",None), "time={}; type=RESPONSE; method={}; url={}; status={}; response={}".format(time.ctime(),request.method,request.base_url,response.status, response.data))
     return response
 
 @app.before_request
 def before():
-    log_and_print_line("time={}; type=REQUEST; method={}; url={}; form={}".format(time.ctime(),request.method,request.base_url,request.form))
+    log_and_print_line(request.form.get("record_id",None), "time={}; type=REQUEST; method={}; url={}; form={}".format(time.ctime(),request.method,request.base_url,request.form))
     pass
 
 def terminated(process):
@@ -93,10 +104,10 @@ def append_to_processed(name, record_id, block_id, new_name):
     block_file_name = output_dir + '/'+ record_id+'/'+str(block_id)+'.flv'
     output_file_name = output_dir + '/process_results/'+new_name+'.flv'
 
-    list_file_name = output_dir + '/append_'+record_id+block_id+new_name+str(int(time.time()))+ ".txt"
+    list_file_name = output_dir + '/append_'+record_id+"_"+block_id+"_"+new_name+"_"+str(int(time.time()))+ ".txt"
 
     if (not os.path.exists(processed_file_name)) or (not os.path.exists(block_file_name)):
-        log_and_print_line("no processed file:{} or block file:{} ".format(processed_file_name, block_file_name))
+        log_and_print_line(record_id, "no processed file:{} or block file:{} ".format(processed_file_name, block_file_name))
         return 1
 
     list_file = open(list_file_name, "w")
@@ -105,6 +116,7 @@ def append_to_processed(name, record_id, block_id, new_name):
     list_file.close()
 
     command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
+    log_and_print_line(record_id, "time={}; append_ffmpeg_command={}".format(time.ctime(), command))
 
     p = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     p.wait()
@@ -139,6 +151,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
             copyfile(start_file_name, output_file_name)
         else:
             command = 'ffmpeg -y  -ss {} -i "{}" -t {} -vcodec copy -acodec copy "{}"'.format(start_block_offset, start_file_name, end_block_offset - start_block_offset + 1, output_file_name)
+            log_and_print_line(record_id, "time={}; process_ffmpeg_command={}".format(time.ctime(), command))
             process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             process.wait()
 
@@ -176,6 +189,7 @@ def start_process(record_id, name, start_block_id , start_block_offset, end_bloc
 
         list_file.close()
         command = "ffmpeg -y -f concat -i {} -vcodec copy -acodec copy {}".format(list_file_name, output_file_name)
+        log_and_print_line(record_id, "time={}; process_ffmpeg_command={}".format(time.ctime(), command))
 
         process = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         process.wait()
@@ -208,20 +222,13 @@ def start_download(url, record_id, block_size):
         if not os.path.exists(output_dir + "/"+record_id):
             os.makedirs(output_dir + "/"+record_id)
     except OSError:
-        log_and_print_line("time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
+        log_and_print_line(record_id, "time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
         return 1, "error when mkdir"
 
 
     command = 'ffmpeg -y -i "' + url + '" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
-    #
-    # lock.acquire()
-    # if "huya" in record_info[record_id]["platform"]:
-    #     command = 'ffmpeg -y -i "' + url + '" -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
-    # lock.release()
 
-    print("start download with command: {}".format(command))
-
-    log_and_print_line("time={}; ffmpeg_command={}".format(time.ctime(), command))
+    log_and_print_line(record_id, "time={}; start_ffmpeg_command={}".format(time.ctime(), command))
 
     process = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
 
@@ -238,7 +245,7 @@ def start_download(url, record_id, block_size):
             record_info[record_id]["status"] = REC_STATUS_RECORDING
             record_info[record_id]["start_time"] = str(int(time.time()))
             lock.release()
-            log_and_print_line("time={}; event=started_recording".format(time.ctime()))
+            log_and_print_line(record_id, "time={}; event=started_recording".format(time.ctime()))
             t = threading.Thread(target=readFFmpegPipe, args=[process])
             t.start()
             return 0, "started"
@@ -247,11 +254,12 @@ def start_download(url, record_id, block_size):
             record_info[record_id]["status"] = REC_STATUS_READY
             record_info[record_id]["ffmpeg_process_handler"] = None
             lock.release()
-            log_and_print_line("time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
+            log_and_print_line(record_id, "time={}; event=error_start_recording_{}".format(time.ctime(),stdline))
             t = threading.Thread(target=readFFmpegPipe, args=[process])
             t.start()
             return 1, "cannot start" + stdline
 
+    log_and_print_line(record_id, "time={}; event=no std lines read".format(time.ctime()))
     t = threading.Thread(target=readFFmpegPipe, args=[process])
     t.start()
     return 1, "Fail"
@@ -266,7 +274,7 @@ def create_recording_with_list(urls, record_id, block_size):
     if res[0] == 0:
         return res
     else:
-        log_and_print_line("time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
+        log_and_print_line(record_id, "time={};event=Streaming_download_fail_try_next_url;".format(time.ctime()))
         urls.pop(0)
         lock.acquire()
         record_info[record_id]["status"] = REC_STATUS_READY
@@ -279,7 +287,7 @@ def worker_convert_format_in_processed_folder():
         # 1 hour
         time.sleep(3600)
         # Convert
-        log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
+        log_and_print_line(record_id, "time={};event=converting_processed_video;".format(time.ctime()))
         p = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     return 1, "Fail"
@@ -308,12 +316,23 @@ def start():
 
     urls = get_stream_url(_platform, _room_id)
 
+    record_id = str(_platform) + "_" + str(_room_id) + "_" + str(int(time.time()))
+
     if not urls:
         return jsonify({"code": 1, "info" : "cannot get streaming url"}), 200
 
-    record_id = str(_platform) + "_" + str(_room_id) + "_" + str(int(time.time()))
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    try:
+        if not os.path.exists(output_dir + "/"+record_id):
+            os.makedirs(output_dir + "/"+record_id)
+    except OSError:
+        log_and_print_line("time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
+        return 1, "error when mkdir"
 
-    log_and_print_line("time={}; event='assigned record_id'; record_id={};".format(time.ctime(),record_id))
+    log_file_store[record_id] = open(output_dir + "/{}/_log_{}.txt".format(record_id, record_id), "w")
+
+    log_and_print_line(record_id, "time={}; event='assigned record_id'; record_id={};".format(time.ctime(),record_id))
 
     # status: ready, error, recording
     record_info[record_id] = { \
@@ -345,7 +364,7 @@ def stop():
         for i in range(6):
             time.sleep(0.5)
             if terminated(record_info[record_id]["ffmpeg_process_handler"]):
-                log_and_print_line("time={}; record_id={}; event=stop_successfully;".format(time.ctime(),record_id))
+                log_and_print_line(record_id, "time={}; record_id={}; event=stop_successfully;".format(time.ctime(),record_id))
                 record_info[record_id]["status"] = REC_STATUS_STOPPED
                 lock.release()
                 return jsonify({"code": 0, "info" : REC_STATUS_STOPPED}), 200
@@ -382,7 +401,7 @@ def delete():
         except Exception as e:
             failed = True
             files_in_dir = '; '.join(os.listdir(output_dir + "/"+ record_id))
-            log_and_print_line("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
+            log_and_print_line(record_id, "time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
             fail_info.append("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
 
     if failed:
@@ -439,9 +458,26 @@ def append():
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    log_and_print_line("time={};event=converting_processed_video;".format(time.ctime()))
+    log_and_print_line("time={};event=sweep_floor;".format(time.ctime()))
     subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start converting"}), 200
+
+@app.route('/sweepfloor', methods=['POST'])
+def sweepfloor():
+    # clean_backup_command = "rm -r output/backup/*; mkdir output/backup/process_results; mkdir output/backup/converted;"
+    # mov_process_command = "mv output/process_results/ backup/process_results/"
+    # mov_converted_command = "mv output/converted/ backup/converted/"
+    # mkdir_converted_command = "mkdir output/converted"
+    # mkdir_process_command = "mkdir output/process_results"
+    if not os.path.exists(output_dir + "/"+"backup"):
+        os.makedirs(output_dir + "/"+"backup")
+    p = subprocess.Popen(clean_backup_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p.wait()
+    subprocess.Popen(mov_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(mov_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(mkdir_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(mkdir_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return jsonify({"code": 0, "record_info":"start sweeping floor"}), 200
 
 @app.route('/debug', methods=['POST'])
 def debug():
@@ -459,6 +495,8 @@ def main():
         os.makedirs(output_dir + "/"+"process_results")
     if not os.path.exists(output_dir + "/"+"converted"):
         os.makedirs(output_dir + "/"+"converted")
+    if not os.path.exists(output_dir + "/"+"backup"):
+        os.makedirs(output_dir + "/"+"backup")
     t = threading.Thread(target=worker_convert_format_in_processed_folder, args=[])
     t.start()
     app.run(port=5002)
