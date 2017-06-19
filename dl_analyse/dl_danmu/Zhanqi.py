@@ -10,7 +10,7 @@ from .Abstract import AbstractDanMuClient
 class ZhanQiDanMuClient(AbstractDanMuClient):
     def get_live_status(self):
         r = requests.get('https://www.zhanqi.tv/' +
-            self.url.split('/')[-1] or self.url.split('/')[-2], 
+            self.roomID,
             headers={'User-Agent': USER_AGENT})
         if r.url == 'https://www.zhanqi.tv/': return False
         rawJson = re.findall('oRoom = (.*);[\s\S]*?window.', r.text)

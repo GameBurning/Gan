@@ -12,6 +12,7 @@ LogFilePath_ = '~/Gan/video/output/'
 PlatformUrl_ = {
     "panda": "www.panda.tv/",
     "douyu": "www.douyu.com/",
+    "zhanqi": "www.zhanqi.tv/"
 }
 
 # Score Rules
