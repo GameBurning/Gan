@@ -6,6 +6,7 @@ import time
 from . import record
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
+from .Zhanqi import ZhanQiDanMuClient
 from .rule import *
 
 
@@ -64,7 +65,8 @@ class DanmuThread(threading.Thread):
         self.__dc = DanmuCounter(name)
         self.__url = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
         client_dict = {'panda': PandaDanMuClient,
-                       'douyu': DouYuDanMuClient}
+                       'douyu': DouYuDanMuClient,
+                       'zhanqi': ZhanQiDanMuClient}
         if platform not in client_dict.keys():
             raise KeyError
         self.__baseClient = client_dict[platform]
