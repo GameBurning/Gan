@@ -189,4 +189,5 @@ class DanmuThread(threading.Thread):
         logfile.close()
         print("===========Thread on {} ends===========".format(self.__name))
         f.write("===========DanmuThread on {} ends===========\n".format(self.__name))
+        record.stop_record(self.__record_id)
         f.close()
