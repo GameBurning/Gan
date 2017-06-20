@@ -225,7 +225,6 @@ def start_download(url, record_id, block_size):
         log_and_print_line(record_id, "time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
         return 1, "error when mkdir"
 
-
     command = 'ffmpeg -y -i "' + url + '" -c copy -sample_rate 44100 -f segment -segment_time ' + str(block_size) + ' -reset_timestamps 1 "' + output_dir + "/" + record_id + "/" + '%d.flv"'
 
     log_and_print_line(record_id, "time={}; start_ffmpeg_command={}".format(time.ctime(), command))

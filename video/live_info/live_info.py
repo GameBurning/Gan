@@ -4,7 +4,18 @@ import requests
 import pprint
 import re
 import hashlib
+import uuid
+import random
+import urllib.parse, urllib.request
 from bs4 import BeautifulSoup
+
+import dyprvt
+API_KEY = 'a2053899224e8a92974c729dceed1cc99b3d8282'
+VER = '2017061511'
+
+def dyprvt_hash(input_data):
+    return dyprvt.stupidMD5(input_data)
+
 
 def get_stream_huya(room_id):
     stream_urls = []
@@ -69,54 +80,26 @@ def get_stream_zhanqi(room_id):
 
 def get_stream_douyu(room_id):
     stream_urls = []
-    try:
-        r = requests.get("http://m.douyu.com/html5/live?roomId={}".format(room_id), timeout=3)
-    except:
-        return []
-    if r.status_code != 200:
-        return []
+    cdn='ws'
+    rate='2'
+    endpoint = 'https://www.douyu.com/lapi/live/getPlay/' + room_id
+    tt = str(int(time.time() / 60))
+    rnd_md5 = hashlib.md5(str(random.random()).encode('utf8'))
+    did = rnd_md5.hexdigest().upper()
+    to_sign = ''.join([room_id, did, API_KEY, tt])
+    sign = dyprvt_hash(to_sign)
+    payload = dict(ver=VER, sign=sign, did=did, rate=rate, tt=tt, cdn=cdn)
 
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(r.text)
-    j = json.loads(r.text)
-    if 'data' not in j or j['data'] == None:
-        return stream_urls
-    data = j['data']
-    server_status = data.get('error',0)
-    if server_status is not 0:
-        print("Server returned error:%s" % server_status)
-        return []
+    json_data = requests.post(endpoint, data=payload).json()
 
-    title = data.get('room_name')
-    show_status = data.get('show_status')
-    print("show_status : " + show_status)
-
-    if show_status is not "1":
-        print("The live stream is not online! (Errno:%s)" % server_status)
-        return []
-
-    tt = int(time.time())
-    sign_content = 'lapi/live/thirdPart/getPlay/{}?aid=pcclient&rate=0&time={}9TUk5fjjUjg9qIMH3sdnh'.format(room_id, tt)
-    sign = hashlib.md5(sign_content.encode('ascii')).hexdigest()
-
-    json_request_url = "http://coapi.douyucdn.cn/lapi/live/thirdPart/getPlay/{}?rate=0".format(room_id)
-    headers = {'auth': sign, 'time': str(tt), 'aid': 'pcclient'}
-
-    try:
-        r = requests.get(json_request_url,  headers = headers, timeout=3)
-    except:
-        return []
-    if r.status_code != 200:
-        return []
-    data = json.loads(r.text)['data']
-    server_status = data.get('error',0)
-
-    if server_status is not 0:
-        raise ValueError("Server returned error:%s" % server_status)
-
-    real_url = data.get('live_url')
-    stream_urls.append(real_url)
-    print("........... urls : " + str(stream_urls))
+    if json_data['error'] == 0:
+        data = json_data['data']
+        url = '/'.join([data['rtmp_url'], data['rtmp_live']])
+        stream_urls.append(url)
+    elif json_data['error'] == -5:
+        raise Exception('Offline')
+    else:
+        raise Exception('API returned with error {}'.format(json_data['error']))
 
     return stream_urls
 
@@ -163,7 +146,7 @@ def get_stream_panda(room_id):
         print("!!Errno : {}, Errmsg : {}".format(errno, errmsg))
         return []
     data_2 = response_2["data"]
-    host_rid = data_2["hostinfo"]["rid"]
+    host_rid = data_2["hostinfo"]["room_id"]
     host_name = data_2["hostinfo"]["name"]
 
     room_name = data_2["roominfo"]["name"]
