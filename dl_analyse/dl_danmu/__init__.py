@@ -18,6 +18,12 @@ class DanmuCounter:
         self.DouyuList = []
         self.LuckyList = []
 
+    def reset(self):
+        self.DanmuList = []
+        self.TripleSixList = []
+        self.DouyuList = []
+        self.LuckyList = []
+
     def count_danmu(self, content):
         if self.DanmuList:
             self.DanmuList[-1] += 1
@@ -184,6 +190,7 @@ class DanmuThread(threading.Thread):
 
             block_id += 1
         self.__is_running = False
+        self.__dc.reset()
         logfile.close()
         print("===========Thread on {} ends===========".format(self.__name))
         f.write("===========DanmuThread on {} ends===========\n".format(self.__name))
