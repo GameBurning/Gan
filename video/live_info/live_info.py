@@ -151,7 +151,7 @@ def get_stream_panda(room_id):
         print("!!Errno : {}, Errmsg : {}".format(errno, errmsg))
         return []
     data_2 = response_2["data"]
-    host_rid = data_2["hostinfo"]["room_id"]
+    host_rid = data_2["hostinfo"]["rid"]
     host_name = data_2["hostinfo"]["name"]
 
     room_name = data_2["roominfo"]["name"]
