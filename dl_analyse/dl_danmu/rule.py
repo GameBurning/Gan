@@ -12,12 +12,13 @@ LogFilePath_ = '~/Gan/video/output/'
 PlatformUrl_ = {
     "panda": "www.panda.tv/",
     "douyu": "www.douyu.com/",
+    "zhanqi": "www.zhanqi.tv/"
 }
 
 # Score Rules
 ScoreRuleTuple = namedtuple("ScoreRuleTuple", ["douyu", "triple", "lucky"])
 ScoreRule_ = ScoreRuleTuple(50, 6, 2)
-ScoreThreshold_ = 800
+ScoreThreshold_ = 3000
 Block_Size_In_Second_ = 45
 Block_Num_Per_Video_ = 4
 
