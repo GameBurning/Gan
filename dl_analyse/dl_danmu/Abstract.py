@@ -1,6 +1,4 @@
-import abc, threading, time, logging, traceback
-
-logger = logging.getLogger('danmu')
+import abc, threading, time, traceback
 
 
 # This client will auto-reload if exception is raised inside and write a log
@@ -13,7 +11,7 @@ logger = logging.getLogger('danmu')
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, log_file_path, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -25,9 +23,10 @@ class AbstractDanMuClient(object):
         self.danmuWaitTime = -1
         self.danmuProcess = None
         self.countDanmuFn = count_danmu_fn
+        self.log_file_path = log_file_path
 
     def start(self):
-        print("===========Socket thread of {} starts===========".format(self.name))
+        self._log("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
             try:
                 # not stopped by outer client
@@ -47,18 +46,23 @@ class AbstractDanMuClient(object):
                 self._wrap_thread(danmuThreadFn, heartThreadFn)
                 self._start_receive()
             except Exception as e:
-                logger.debug(traceback.format_exc())
+                self._log(traceback.format_exc())
                 time.sleep(5)
-            else:
-                break
+        self._log("===========Socket thread of {} ends===========".format(self.name))
+
+    def _log(self, _content):
+        print(_content)
+        with open(self.log_file_path, 'a') as _f:
+            _f.write(time.ctime(time.time()) + ": " + _content + "\n")
 
     def _socket_timeout(self, fn):
         # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
             try:
                 fn(*args, **kwargs)
+
             except Exception as e:
-                logger.debug(traceback.format_exc())
+                self._log(traceback.format_exc())
                 if not self.live: return
                 self.live = False
                 # In case thread is blocked and can't stop, set a max wait time
@@ -73,6 +77,7 @@ class AbstractDanMuClient(object):
         def heart_beat(self):
             while self.live and not self.deprecated:
                 heartThreadFn(self)
+
         @self._socket_timeout
         def get_danmu(self):
             while self.live and not self.deprecated:
