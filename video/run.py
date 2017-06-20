@@ -41,6 +41,7 @@ mov_process_command = "mv output/process_results/ output/backup/"
 mov_converted_command = "mv output/converted/ output/backup/"
 mkdir_converted_command = "mkdir output/converted"
 mkdir_process_command = "mkdir output/process_results"
+rm_recording_command = "rm -r output/panda_*; rm -r output/douyu_*; rm -r output/zhanqi_*; "
 
 def kill_proc_tree(pid, including_parent=True):
     parent = psutil.Process(pid)
@@ -472,10 +473,12 @@ def sweepfloor():
         os.makedirs(output_dir + "/"+"backup")
     p = subprocess.Popen(clean_backup_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     p.wait()
+    
     subprocess.Popen(mov_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mov_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mkdir_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mkdir_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.Popen(rm_recording_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start sweeping floor"}), 200
 
 @app.route('/debug', methods=['POST'])
