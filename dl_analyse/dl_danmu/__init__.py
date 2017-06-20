@@ -131,7 +131,7 @@ class DanmuThread(threading.Thread):
             time.sleep(sleep_time)
 
             if not os.path.isfile(log_dir + self.__record_id + '/' + str(block_id) + '.flv'):
-                print("No recording file {}, exit".format(log_dir + self.__record_id + '/' + str(block_id) + '.flv'))
+                print("time = {} ; No recording file {}, exit".format(time.time(), log_dir + self.__record_id + '/' + str(block_id) + '.flv'))
                 # threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3,
                 #                                                    block_id - 3)).start()
                 break
