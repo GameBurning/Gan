@@ -4,7 +4,7 @@ from struct import pack
 
 import requests
 
-from danmu.config import USER_AGENT
+from .config import USER_AGENT
 from .Abstract import AbstractDanMuClient
 
 class ZhanQiDanMuClient(AbstractDanMuClient):
