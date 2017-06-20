@@ -87,19 +87,24 @@ def get_stream_douyu(room_id):
     rnd_md5 = hashlib.md5(str(random.random()).encode('utf8'))
     did = rnd_md5.hexdigest().upper()
     to_sign = ''.join([room_id, did, API_KEY, tt])
-    sign = dyprvt_hash(to_sign)
-    payload = dict(ver=VER, sign=sign, did=did, rate=rate, tt=tt, cdn=cdn)
 
-    json_data = requests.post(endpoint, data=payload).json()
-
+    try:
+        sign = dyprvt_hash(to_sign)
+        payload = dict(ver=VER, sign=sign, did=did, rate=rate, tt=tt, cdn=cdn)
+        json_data = requests.post(endpoint, data=payload).json()
+    except:
+        return []
+        
     if json_data['error'] == 0:
         data = json_data['data']
         url = '/'.join([data['rtmp_url'], data['rtmp_live']])
         stream_urls.append(url)
     elif json_data['error'] == -5:
-        raise Exception('Offline')
+        print('douyu {} Offline'.format(room_id))
+        return []
     else:
-        raise Exception('API returned with error {}'.format(json_data['error']))
+        print('douyu {} API returned with error {}'.format(room_id, json_data['error']))
+        return []
 
     return stream_urls
 
