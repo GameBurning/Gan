@@ -54,7 +54,8 @@ class DanmuThread(threading.Thread):
         return record_folder_dir
 
     def gan(self):
-        debug_file = open(self.get_record_folder() + '{}_danmu_log'.format(self.__record_id), 'a', encoding='utf-8')
+        debug_file_path = self.get_record_folder() + '{}_danmu_log'.format(self.__record_id)
+        debug_file = open(debug_file_path, 'a', encoding='utf-8')
 
         def _log(_content, _file=debug_file):
             print(self.__name + ", " + _content)
@@ -70,7 +71,8 @@ class DanmuThread(threading.Thread):
             if Record_Mode_:
                 trial_counter = 0
                 while trial_counter < 5:
-                    m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_, platform=self.__platform)
+                    m = record.start_record(self.__room_id, debug_file_path, block_size=Block_Size_In_Second_,
+                                            platform=self.__platform)
                     (record_id, start_time) = m
                     _log("start_record of {} feedback: {}".format(self.__name, m))
                     if start_time != -1:
@@ -137,7 +139,7 @@ class DanmuThread(threading.Thread):
                                        l_last_block_data[3][2] + l_c.triple, l_last_block_data[3][3] + l_c.lucky)
                             _log('should append {} to {}'.format(block_id, l_last_block_data[1]))
                             threading.Thread(target=record.append_block,
-                                             args=(self.__record_id, block_id, l_last_block_data[1],
+                                             args=(self.__record_id, debug_file_path, block_id, l_last_block_data[1],
                                                    l_video_name)).start()
                             l_last_block_data = (True, l_video_name, (l_last_block_data[2][0], block_id),
                                                  (l_last_block_data[3][0] + l_c.douyu,
@@ -153,10 +155,11 @@ class DanmuThread(threading.Thread):
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
                             _log('should combine {} to {}'.format(block_id - 3, block_id))
                             threading.Thread(target=record.combine_block,
-                                             args=(self.__record_id, block_id - 3, block_id, l_video_name)).start()
+                                             args=(self.__record_id, debug_file_path, block_id - 3, block_id,
+                                                   l_video_name)).start()
                     else:
                         l_last_block_data = (False, "")
-                    threading.Thread(target=record.delete_block, args=(self.__record_id, block_id - 3,
+                    threading.Thread(target=record.delete_block, args=(self.__record_id, debug_file_path, block_id - 3,
                                                                        block_id - 3)).start()
             except Exception as e:
                 _log("In record has Exception {}".format(e))
