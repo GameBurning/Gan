@@ -24,6 +24,7 @@ MANAGER = '60'
 SP_MANAGER = '120'
 HOSTER = '90'
 
+
 class _socket(socket.socket):
     def communicate(self, data):
         self.push(data)
@@ -38,19 +39,6 @@ class _socket(socket.socket):
 
 
 class PandaDanMuClient(AbstractDanMuClient):
-    # return if the room is Online
-    def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
-        self.roomID = room_id
-        self.name = name
-        self.maxNoDanMuWait = maxNoDanMuWait
-        self.anchorStatusRescanTime = anchorStatusRescanTime
-        self.deprecated = False  # this is an outer live flag
-        self.live = False  # this is an inner live flag
-        self.danmuSocket = None
-        self.danmuThread, self.heartThread = None, None
-        self.danmuWaitTime = -1
-        self.danmuProcess = None
-        self.countDanmuFn = count_danmu_fn
 
     def get_live_status(self):
         try:
@@ -65,7 +53,7 @@ class PandaDanMuClient(AbstractDanMuClient):
             print("Inside Panda get_live Function: {}. Json is {}".format(e, j))
             return False
         except Exception as e:
-            print("Inside Panda get_live Function:{}. Json is {}".format(e))
+            print("Inside Panda get_live Function:{}. Json is {}".format(e, j))
 
     def _prepare_env(self):
         roomId = self.roomID
@@ -82,6 +70,7 @@ class PandaDanMuClient(AbstractDanMuClient):
         serverInfo = requests.get(url, params).json()['data']
         serverAddress = serverInfo['chat_addr_list'][0].split(':')
         return (serverAddress[0], int(serverAddress[1])), serverInfo
+
     def _init_socket(self, danmu, roomInfo):
         data = [
             ('u', '%s@%s'%(roomInfo['rid'], roomInfo['appid'])),
@@ -97,6 +86,7 @@ class PandaDanMuClient(AbstractDanMuClient):
         self.danmuSocket.settimeout(3)
         self.danmuSocket.connect(danmu)
         self.danmuSocket.push(data)
+
     def _create_thread_fn(self, roomInfo):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
