@@ -58,6 +58,8 @@ def kill_proc_tree(pid, including_parent=True):
 # Since our use case is simple, no need to involve extra layer of work
 def log_line(record_id=PublicLogID, str = ""):
     if record_id not in log_file_store:
+        log_file_store[PublicLogID].write("wrong record_id {} in log_line".format(record_id)+'\n')
+        print("wrong record_id {} in log_line".format(record_id)+'\n')
         return 1
     log_lock.acquire()
     try:
@@ -287,7 +289,7 @@ def worker_convert_format_in_processed_folder():
         # 1 hour
         time.sleep(3600)
         # Convert
-        log_and_print_line(record_id, "time={};event=converting_processed_video;".format(time.ctime()))
+        log_and_print_line(PublicLogID, "time={};event=converting_processed_video;".format(time.ctime()))
         p = subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     return 1, "Fail"
@@ -458,7 +460,7 @@ def append():
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    log_and_print_line("time={};event=sweep_floor;".format(time.ctime()))
+    log_and_print_line("time={};event=convert;".format(time.ctime()))
     subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start converting"}), 200
 
@@ -473,7 +475,7 @@ def sweepfloor():
         os.makedirs(output_dir + "/"+"backup")
     p = subprocess.Popen(clean_backup_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     p.wait()
-    
+
     subprocess.Popen(mov_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mov_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mkdir_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
