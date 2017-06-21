@@ -36,7 +36,7 @@ class AbstractDanMuClient(object):
                 #     # if offline wait for sometime
                 #     time.sleep(self.anchorStatusRescanTime)
                 # # if stopped by outer client, then stop this function
-                # else:
+                # else:th
                 #     break
                 danmuSocketInfo, roomInfo = self._prepare_env()
                 if self.danmuSocket: self.danmuSocket.close()
@@ -48,6 +48,8 @@ class AbstractDanMuClient(object):
             except Exception as e:
                 self._log(traceback.format_exc())
                 time.sleep(5)
+            else:
+                break
         self._log("===========Socket thread of {} ends===========".format(self.name))
 
     def _log(self, _content):

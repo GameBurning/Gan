@@ -54,26 +54,28 @@ class DanmuThread(threading.Thread):
         return record_folder_dir
 
     def gan(self):
-        debug_file_path = self.get_record_folder() + '{}_danmu_log'.format(self.__record_id)
-        debug_file = open(debug_file_path, 'a', encoding='utf-8')
 
-        def _log(_content, _file=debug_file):
-            print(self.__name + ", " + _content)
-            if _file != debug_file:
-                _file.write(_content + "\n")
-            else:
-                _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content+"\n")
         # Danmu Thread On
-        _log("===========DanmuThread starts===========")
+        print("===========DanmuThread starts===========")
 
         # Start recording
         try:
             if Record_Mode_:
                 trial_counter = 0
                 while trial_counter < 5:
-                    m = record.start_record(self.__room_id, debug_file_path, block_size=Block_Size_In_Second_,
+                    m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_,
                                             platform=self.__platform)
                     (record_id, start_time) = m
+                    debug_file_path = self.get_record_folder() + '{}_danmu_log'.format(self.__record_id)
+                    debug_file = open(debug_file_path, 'a', encoding='utf-8')
+
+                    def _log(_content, _file=debug_file):
+                        print(self.__name + ", " + _content)
+                        if _file != debug_file:
+                            _file.write(_content + "\n")
+                        else:
+                            _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content + "\n")
+
                     _log("start_record of {} feedback: {}".format(self.__name, m))
                     if start_time != -1:
                         start_time = int(start_time)
@@ -88,12 +90,14 @@ class DanmuThread(threading.Thread):
             else:
                 start_time = int(time.time())
         except Exception as e:
-            _log("Exception at starting period: {}".format( e))
+            print("Exception at starting period: {}".format( e))
             self.__is_running = False
-            _log("Starting has error and return")
+            print("Starting has error and return")
             return
         _log("===========Successfully start recording===========")
         threading.Thread(target=self.__client.start).start()
+
+
 
         # Recording starts and now is block 0
         self.__is_running = True
