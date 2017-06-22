@@ -56,23 +56,26 @@ class PandaDanMuClient(AbstractDanMuClient):
             print("Inside Panda get_live Function:{}. Json is {}".format(e, j))
 
     def _prepare_env(self):
-        try:
-            roomId = self.roomID
-            url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
-            roomInfo = requests.get(url).json()
-            url = 'http://api.homer.panda.tv/chatroom/getinfo'
-            params = {
-                'rid': roomInfo['data']['rid'],
-                'roomid': roomId,
-                'retry': 0,
-                'sign': roomInfo['data']['sign'],
-                'ts': roomInfo['data']['ts'],
-                '_': int(time.time()), }
-            serverInfo = requests.get(url, params).json()['data']
-            serverAddress = serverInfo['chat_addr_list'][0].split(':')
-            return (serverAddress[0], int(serverAddress[1])), serverInfo
-        except Exception as e:
-            print(e)
+        trial = 0
+        while trial < 5:
+            try:
+                roomId = self.roomID
+                url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
+                roomInfo = requests.get(url).json()
+                url = 'http://api.homer.panda.tv/chatroom/getinfo'
+                params = {
+                    'rid': roomInfo['data']['rid'],
+                    'roomid': roomId,
+                    'retry': 0,
+                    'sign': roomInfo['data']['sign'],
+                    'ts': roomInfo['data']['ts'],
+                    '_': int(time.time()), }
+                serverInfo = requests.get(url, params).json()['data']
+                serverAddress = serverInfo['chat_addr_list'][0].split(':')
+                return (serverAddress[0], int(serverAddress[1])), serverInfo
+            except Exception as e:
+                print(e)
+        return (0, 0), 0
 
     def _init_socket(self, danmu, roomInfo):
         data = [

@@ -38,6 +38,9 @@ class AbstractDanMuClient(object):
                 else:
                     break
                 danmuSocketInfo, roomInfo = self._prepare_env()
+                if roomInfo == 0:
+                    time.sleep(self.anchorStatusRescanTime / 2)
+                    continue
                 if self.danmuSocket: self.danmuSocket.close()
                 self.danmuWaitTime = -1
                 self._init_socket(danmuSocketInfo, roomInfo)
