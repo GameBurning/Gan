@@ -75,6 +75,7 @@ class DanmuThread(threading.Thread):
                             _file.write(_content + "\n")
                         else:
                             _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content + "\n")
+                        _file.flush()
 
                     _log("start_record of {} feedback: {}".format(self.__name, m))
                     if start_time != -1:
@@ -125,7 +126,7 @@ class DanmuThread(threading.Thread):
                 _log("{},{},{},{},{},{}\n".format(block_start_time, block_id, *count_res), counter_file)
                 _log("logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_start_time, block_id, *count_res))
-                counter_file.flush()
+                # counter_file.flush()
             except Exception as e:
                 _log("inside while loop in gan: {}".format(e))
 
