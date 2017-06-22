@@ -7,8 +7,8 @@ def _log(_content, _file):
     _file.write(time.ctime(time.time()) + ": " + _content + '\n')
 
 
-def start_record(roomid, logfile_path, platform='panda', block_size=45, port=5002):
-    with open(logfile_path, 'a') as f:
+def start_record(roomid, platform='panda', block_size=45, port=5002):
+    with open("starting_log", 'a') as f:
         _log('get start command from {} and now requesting it to video server\n'.format(roomid), f)
         para = {'room_id': roomid, 'platform': platform, 'output_config':'{"block_size":' + str(block_size) + '}'}
         r = requests.post('http://127.0.0.1:{}/start'.format(port), data=para)
