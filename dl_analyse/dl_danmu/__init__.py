@@ -176,5 +176,5 @@ class DanmuThread(threading.Thread):
             self.__client.deprecated = True
         counter_file.close()
         _log("===========Thread ends===========")
-        record.stop_record(self.__record_id)
+        record.stop_record(self.__record_id, debug_file_path)
         debug_file.close()
