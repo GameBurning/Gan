@@ -36,13 +36,6 @@ range_to_combined_hashtable = {}
 
 convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e ../converted/$i.mov ]; then ffmpeg -y -i $i -ar 44100 ../converted/$i.mov; fi; done'
 
-clean_backup_command = "rm -r output/backup/*; mkdir output/backup/process_results; mkdir output/backup/converted;"
-mov_process_command = "mv output/process_results/ output/backup/"
-mov_converted_command = "mv output/converted/ output/backup/"
-mkdir_converted_command = "mkdir output/converted"
-mkdir_process_command = "mkdir output/process_results"
-rm_recording_command = "rm -r output/panda_*; rm -r output/douyu_*; rm -r output/zhanqi_*; "
-
 def kill_proc_tree(pid, including_parent=True):
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
@@ -466,20 +459,22 @@ def convert():
 
 @app.route('/sweepfloor', methods=['POST'])
 def sweepfloor():
-    # clean_backup_command = "rm -r output/backup/*; mkdir output/backup/process_results; mkdir output/backup/converted;"
-    # mov_process_command = "mv output/process_results/ backup/process_results/"
-    # mov_converted_command = "mv output/converted/ backup/converted/"
-    # mkdir_converted_command = "mkdir output/converted"
-    # mkdir_process_command = "mkdir output/process_results"
+    clean_backup_command = "rm output/backup/process_results/*.mov; rm output/backup/converted/*.mov;"
+    mov_process_command = "mv output/process_results/*.flv output/backup/process_results/"
+    mov_converted_command = "mv output/converted/*.mov output/backup/converted/"
+    rm_recording_command = "rm -r output/panda_*; rm -r output/douyu_*; rm -r output/zhanqi_*; "
+
     if not os.path.exists(output_dir + "/"+"backup"):
         os.makedirs(output_dir + "/"+"backup")
+    if not os.path.exists(output_dir + "/"+"backup"+ "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"backup"+ "/"+"process_results")
+    if not os.path.exists(output_dir + "/"+"backup"+ "/"+"converted"):
+        os.makedirs(output_dir + "/"+"backup"+ "/"+"converted")
     p = subprocess.Popen(clean_backup_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     p.wait()
 
     subprocess.Popen(mov_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(mov_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.Popen(mkdir_converted_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    subprocess.Popen(mkdir_process_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.Popen(rm_recording_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start sweeping floor"}), 200
 
@@ -501,6 +496,10 @@ def main():
         os.makedirs(output_dir + "/"+"converted")
     if not os.path.exists(output_dir + "/"+"backup"):
         os.makedirs(output_dir + "/"+"backup")
+    if not os.path.exists(output_dir + "/"+"backup"+ "/"+"process_results"):
+        os.makedirs(output_dir + "/"+"backup"+ "/"+"process_results")
+    if not os.path.exists(output_dir + "/"+"backup"+ "/"+"converted"):
+        os.makedirs(output_dir + "/"+"backup"+ "/"+"converted")
     t = threading.Thread(target=worker_convert_format_in_processed_folder, args=[])
     t.start()
     app.run(port=5002)
