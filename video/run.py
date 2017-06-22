@@ -69,12 +69,12 @@ def log_and_print_line(record_id=PublicLogID, str = ""):
 
 @app.after_request
 def after(response):
-    log_and_print_line(request.form.get("record_id",None), "time={}; type=RESPONSE; method={}; url={}; status={}; response={}".format(time.ctime(),request.method,request.base_url,response.status, response.data))
+    log_and_print_line(request.form.get("record_id",PublicLogID), "time={}; type=RESPONSE; method={}; url={}; status={}; response={}".format(time.ctime(),request.method,request.base_url,response.status, response.data))
     return response
 
 @app.before_request
 def before():
-    log_and_print_line(request.form.get("record_id",None), "time={}; type=REQUEST; method={}; url={}; form={}".format(time.ctime(),request.method,request.base_url,request.form))
+    log_and_print_line(request.form.get("record_id",PublicLogID), "time={}; type=REQUEST; method={}; url={}; form={}".format(time.ctime(),request.method,request.base_url,request.form))
     pass
 
 def terminated(process):
@@ -322,7 +322,7 @@ def start():
         if not os.path.exists(output_dir + "/"+record_id):
             os.makedirs(output_dir + "/"+record_id)
     except OSError:
-        log_and_print_line("time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
+        log_and_print_line(record_id,"time={};event=cannot_make_dir_{}".format(time.ctime(),output_dir + "/"+record_id))
         return 1, "error when mkdir"
 
     log_file_store[record_id] = open(output_dir + "/{}/_log_{}.txt".format(record_id, record_id), "w")
@@ -400,7 +400,7 @@ def delete():
             fail_info.append("time={}; event=delete_fail; record_id={}; block_id={}; filesInDir={}".format(time.ctime(), record_id, i, files_in_dir))
 
     if failed:
-        return jsonify({"code": 1, "fail_list" : fail_info}), 200
+        return jsonify({"code": 0, "fail_list" : fail_info}), 200
     else :
         return jsonify({"code": 0, "info" : "deleted"}), 200
 
@@ -453,13 +453,13 @@ def append():
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    log_and_print_line("time={};event=convert;".format(time.ctime()))
+    log_and_print_line(PublicLogID, "time={};event=convert;".format(time.ctime()))
     subprocess.Popen(convert_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return jsonify({"code": 0, "record_info":"start converting"}), 200
 
 @app.route('/sweepfloor', methods=['POST'])
 def sweepfloor():
-    clean_backup_command = "rm output/backup/process_results/*.mov; rm output/backup/converted/*.mov;"
+    clean_backup_command = "rm output/backup/process_results/*.flv; rm output/backup/converted/*.mov;"
     mov_process_command = "mv output/process_results/*.flv output/backup/process_results/"
     mov_converted_command = "mv output/converted/*.mov output/backup/converted/"
     rm_recording_command = "rm -r output/panda_*; rm -r output/douyu_*; rm -r output/zhanqi_*; "
