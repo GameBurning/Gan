@@ -29,15 +29,14 @@ class AbstractDanMuClient(object):
         self._log("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
             try:
-                # not stopped by outer client
-                # while not self.deprecated:
-                #     # if online then break
-                #     if self.get_live_status(): break
-                #     # if offline wait for sometime
-                #     time.sleep(self.anchorStatusRescanTime)
-                # # if stopped by outer client, then stop this function
-                # else:th
-                #     break
+                while not self.deprecated:
+                    # if online then break
+                    if self.get_live_status(): break
+                    # if offline wait for sometime
+                    time.sleep(self.anchorStatusRescanTime)
+                # if stopped by outer client, then stop this function
+                else:
+                    break
                 danmuSocketInfo, roomInfo = self._prepare_env()
                 if self.danmuSocket: self.danmuSocket.close()
                 self.danmuWaitTime = -1
@@ -50,7 +49,6 @@ class AbstractDanMuClient(object):
                 time.sleep(5)
             else:
                 break
-        self._log("===========Socket thread of {} ends===========".format(self.name))
 
     def _log(self, _content):
         print(_content)
