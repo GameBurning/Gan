@@ -31,7 +31,7 @@ def main():
     room_info_list = load_init()
     for room in room_info_list:
         room_thread = DanmuThread(room_id=room["id"], platform=room['platform'], name=room['name'], abbr=room['abbr'],
-                                  factor=room['factor'])
+                                  factor=int(room['factor']))
         room_thread.start()
 
 main()
