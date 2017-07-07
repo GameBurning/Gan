@@ -89,7 +89,7 @@ def append_block(record_id, logfile_path, block_id, old_name, new_name, port=500
 
 def sweep_floor(logfile_path, port=5002):
     with open(logfile_path, 'a') as f:
-        r = requests.post('http://127.0.0.1:{}/append'.format(port))
+        r = requests.post('http://127.0.0.1:{}/sweepfloor'.format(port))
         if r.json()['code'] == 0:
             _log("sweep succeed and json info is {}\n".format(r.json()['info']), f)
             return True
