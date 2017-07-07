@@ -36,6 +36,17 @@ range_to_combined_hashtable = {}
 
 convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e ../converted/$i.mov ]; then ffmpeg -y -i $i -ar 44100 ../converted/$i.mov; fi; done'
 
+
+def stop_all_recording():
+    for record_id in record_info:
+        lock.acquire()
+        if (record_id in record_info) and (record_info[record_id]["ffmpeg_process_handler"] != None) and (not terminated(record_info[record_id]["ffmpeg_process_handler"])):
+            kill_proc_tree(record_info[record_id]["PID"])
+            log_and_print_line(record_id, "time={}; record_id={}; event=stop_successfully;".format(time.ctime(),record_id))
+            record_info[record_id]["status"] = REC_STATUS_STOPPED
+        lock.release()
+
+
 def kill_proc_tree(pid, including_parent=True):
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
@@ -463,6 +474,8 @@ def sweepfloor():
     mov_process_command = "mv output/process_results/*.flv output/backup/process_results/"
     mov_converted_command = "mv output/converted/*.mov output/backup/converted/"
     rm_recording_command = "rm -r output/panda_*; rm -r output/douyu_*; rm -r output/zhanqi_*; "
+
+    stop_all_recording()
 
     if not os.path.exists(output_dir + "/"+"backup"):
         os.makedirs(output_dir + "/"+"backup")

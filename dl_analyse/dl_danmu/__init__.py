@@ -13,7 +13,7 @@ from .DanmuCounter import DanmuCounter
 
 class DanmuThread(threading.Thread):
 
-    def __init__(self, room_id, platform, name, abbr, live_status_rescan_interval=30):
+    def __init__(self, room_id, platform, name, abbr, factor, live_status_rescan_interval=30):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
         self.__name         = name
@@ -25,6 +25,7 @@ class DanmuThread(threading.Thread):
         self.__baseClient   = None
         self.__client       = None
         self.__record_id    = ""
+        self.__factor       = factor
         self.__live_status_rescan_interval = live_status_rescan_interval
         self.__dc = DanmuCounter(name)
         self.__url = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
@@ -135,13 +136,12 @@ class DanmuThread(threading.Thread):
                     _log("has {} douyu times and target number is {}".
                          format(sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.get_score(-2) >= ScoreThreshold_ or self.__dc.DouyuList[-2] > 2:
+                    if self.__dc.DouyuList[-2] * self.__factor > 8:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
-                            l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}'.\
-                                format(self.__abbr, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
-                                       block_id, self.__dc.get_score(-2)+l_last_block_data[3][1],
-                                       l_last_block_data[3][2] + l_c.triple, l_last_block_data[3][3] + l_c.lucky)
+                            l_video_name = '{}_pot:{}_from:{}_to:{}'.\
+                                format(self.__abbr, (l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
+                                       l_last_block_data[2][0], block_id)
                             _log('should append {} to {}'.format(block_id, l_last_block_data[1]))
                             threading.Thread(target=record.append_block,
                                              args=(self.__record_id, debug_file_path, block_id, l_last_block_data[1],
@@ -153,9 +153,8 @@ class DanmuThread(threading.Thread):
                                                   l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
-                            l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}' \
-                                .format(self.__abbr, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-2),
-                                        l_c.triple, l_c.lucky)
+                            l_video_name = '{}_pot:{}_from:{}_to:{}' \
+                                .format(self.__abbr, l_c.douyu * self.__factor / 30, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
                             _log('should combine {} to {}'.format(block_id - 3, block_id))
@@ -178,4 +177,3 @@ class DanmuThread(threading.Thread):
         counter_file.close()
         _log("===========Thread ends===========")
         record.stop_record(self.__record_id, debug_file_path)
-        debug_file.close()
