@@ -1,4 +1,4 @@
-import abc, threading, time, traceback
+import abc, threading, time, traceback, logging
 
 
 # This client will auto-reload if exception is raised inside and write a log
@@ -11,7 +11,7 @@ import abc, threading, time, traceback
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu_fn, log_file_path, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -23,7 +23,13 @@ class AbstractDanMuClient(object):
         self.danmuWaitTime = -1
         self.danmuProcess = None
         self.countDanmuFn = count_danmu_fn
-        self.log_file_path = log_file_path
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch_formatter = logging.Formatter('%(message)s')
+        ch.setFormatter(ch_formatter)
+        self.logger.addHandler(ch)
 
     def start(self):
         self._log("===========Socket thread of {} starts===========".format(self.name))
@@ -48,10 +54,17 @@ class AbstractDanMuClient(object):
                 self._wrap_thread(danmuThreadFn, heartThreadFn)
                 self._start_receive()
             except Exception as e:
-                self._log(traceback.format_exc())
+                self.logger.critical(traceback.format_exc())
                 time.sleep(5)
             else:
                 break
+
+    def set_logger_file_handler(self, logfile_path):
+        fh = logging.FileHandler(filename=logfile_path)
+        fh.setLevel(logging.WARNING)
+        fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%d/%Y %I:%M:%S')
+        fh.setFormatter(fh_formatter)
+        self.logger.addHandler(fh)
 
     def _log(self, _content):
         print(_content)

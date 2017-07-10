@@ -55,6 +55,7 @@ class DouYuDanMuClient(AbstractDanMuClient):
         def keep_alive(self):
             self.danmuSocket.push('type@=keeplive/tick@=%s/'%int(time.time()))
             time.sleep(30)
+
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
             content = self.danmuSocket.pull()

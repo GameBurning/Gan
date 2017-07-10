@@ -71,8 +71,6 @@ class DanmuThread(threading.Thread):
         douyu = []
         triple_six = []
         score_dict = []
-        delete_range = []
-        combine_range = []
         audition = []
         block_id = 0
         logfile = open(logdir + statistic_filename, 'w')

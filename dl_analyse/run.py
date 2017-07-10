@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from dl_danmu import DanmuThread
 import argparse
+import logging
 
 INIT_PROPERTIES = 'init.properties'
 
@@ -30,8 +31,15 @@ def load_init() -> []:
 def main():
     room_info_list = load_init()
     for room in room_info_list:
+        logger = logging.getLogger(room['abbr'])
+        logger.setLevel(logging.INFO)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch_formatter = logging.Formatter('%(asctime)s %(name)s %(message)s')
+        ch.setFormatter(ch_formatter)
+        logger.addHandler(ch)
         room_thread = DanmuThread(room_id=room["id"], platform=room['platform'], name=room['name'], abbr=room['abbr'],
-                                  factor=int(room['factor']))
+                                  factor=float(room['factor']), logger=logger)
         room_thread.start()
 
 main()
