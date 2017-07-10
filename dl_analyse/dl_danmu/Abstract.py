@@ -26,7 +26,7 @@ class AbstractDanMuClient(object):
         self.logger = logger
 
     def start(self):
-        self._log("===========Socket thread of {} starts===========".format(self.name))
+        self.logger.info("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
             try:
                 while not self.deprecated:
@@ -60,11 +60,6 @@ class AbstractDanMuClient(object):
         fh.setFormatter(fh_formatter)
         self.logger.addHandler(fh)
 
-    def _log(self, _content):
-        print(_content)
-        with open(self.log_file_path, 'a') as _f:
-            _f.write(time.ctime(time.time()) + ": " + _content + "\n")
-
     def _socket_timeout(self, fn):
         # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
@@ -72,7 +67,7 @@ class AbstractDanMuClient(object):
                 fn(*args, **kwargs)
 
             except Exception as e:
-                self._log(traceback.format_exc())
+                self.logger.critical(traceback.format_exc())
                 if not self.live: return
                 self.live = False
                 # In case thread is blocked and can't stop, set a max wait time
