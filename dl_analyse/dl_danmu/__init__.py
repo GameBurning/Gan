@@ -99,7 +99,7 @@ class DanmuThread(threading.Thread):
             self.__is_running = False
             print("Starting has error and return")
             return
-        self.logger.INFO("===========Successfully start recording===========")
+        self.logger.info("===========Successfully start recording===========")
         threading.Thread(target=self.__client.start).start()
 
         # Recording starts and now is block 0
