@@ -74,7 +74,7 @@ class PandaDanMuClient(AbstractDanMuClient):
                 serverAddress = serverInfo['chat_addr_list'][0].split(':')
                 return (serverAddress[0], int(serverAddress[1])), serverInfo
             except Exception as e:
-                print("prepare_env:", e)
+                print("prepare_env:", e, "serverInfo:", serverInfo)
         return (0, 0), 0
 
     def _init_socket(self, danmu, roomInfo):
