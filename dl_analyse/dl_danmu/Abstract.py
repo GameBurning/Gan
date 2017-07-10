@@ -11,7 +11,7 @@ import abc, threading, time, traceback, logging
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu_fn, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, logger, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -23,13 +23,7 @@ class AbstractDanMuClient(object):
         self.danmuWaitTime = -1
         self.danmuProcess = None
         self.countDanmuFn = count_danmu_fn
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch_formatter = logging.Formatter('%(message)s')
-        ch.setFormatter(ch_formatter)
-        self.logger.addHandler(ch)
+        self.logger = logger
 
     def start(self):
         self._log("===========Socket thread of {} starts===========".format(self.name))

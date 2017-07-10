@@ -33,11 +33,11 @@ class DanmuThread(threading.Thread):
         client_dict = {'panda': PandaDanMuClient,
                        'douyu': DouYuDanMuClient,
                        'zhanqi': ZhanQiDanMuClient}
+        self.logger = logger
         if platform not in client_dict.keys():
             raise KeyError
         self.__baseClient   = client_dict[platform]
-        self.__client = self.__baseClient(self.__room_id, self.__name, self.__dc.count_danmu)
-        self.logger = logger
+        self.__client = self.__baseClient(self.__room_id, self.__name, self.__dc.count_danmu, self.logger)
         self.__recorder    = Recorder(self.__name, self.logger)
 
     def room_is_live(self):
@@ -79,7 +79,6 @@ class DanmuThread(threading.Thread):
                         self.__record_id = record_id
 
                         debug_file_path = self.get_record_folder() + 'danmu_log_{}'.format(self.__record_id)
-                        self.__recorder.set_file_handler(debug_file_path)
                         fh = logging.FileHandler(filename=debug_file_path)
                         fh.setLevel(logging.INFO)
                         fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%d/%Y %I:%M:%S')
