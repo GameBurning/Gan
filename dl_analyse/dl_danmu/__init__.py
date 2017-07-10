@@ -81,7 +81,7 @@ class DanmuThread(threading.Thread):
                         debug_file_path = self.get_record_folder() + 'danmu_log_{}'.format(self.__record_id)
                         fh = logging.FileHandler(filename=debug_file_path)
                         fh.setLevel(logging.INFO)
-                        fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%d/%Y %I:%M:%S')
+                        fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%m/%d %I:%M:%S')
                         fh.setFormatter(fh_formatter)
                         self.logger.addHandler(fh)
                         self.logger.info("start_record of {} feedback: {}".format(self.__name, m))
