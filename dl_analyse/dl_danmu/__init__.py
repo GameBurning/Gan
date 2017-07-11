@@ -100,6 +100,7 @@ class DanmuThread(threading.Thread):
             print("Starting has error and return")
             return
         self.logger.info("===========Successfully start recording===========")
+        self.__client.deprecated = False
         threading.Thread(target=self.__client.start).start()
 
         # Recording starts and now is block 0
