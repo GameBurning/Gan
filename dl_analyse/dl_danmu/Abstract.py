@@ -37,9 +37,11 @@ class AbstractDanMuClient(object):
                 # if stopped by outer client, then stop this function
                 else:
                     break
-                danmuSocketInfo, roomInfo = self._prepare_env()
-                if roomInfo == 0:
-                    time.sleep(self.anchorStatusRescanTime / 2)
+                try:
+                    danmuSocketInfo, roomInfo = self._prepare_env()
+                except Exception as e:
+                    self.logger.critical('prepare env failed and exception is {}'.format(e))
+                    time.sleep(20)
                     continue
                 if self.danmuSocket: self.danmuSocket.close()
                 self.danmuWaitTime = -1
@@ -53,19 +55,11 @@ class AbstractDanMuClient(object):
             else:
                 break
 
-    def set_logger_file_handler(self, logfile_path):
-        fh = logging.FileHandler(filename=logfile_path)
-        fh.setLevel(logging.WARNING)
-        fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%d/%Y %I:%M:%S')
-        fh.setFormatter(fh_formatter)
-        self.logger.addHandler(fh)
-
     def _socket_timeout(self, fn):
         # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
             try:
                 fn(*args, **kwargs)
-
             except Exception as e:
                 self.logger.critical(traceback.format_exc())
                 if not self.live: return
@@ -87,7 +81,7 @@ class AbstractDanMuClient(object):
         def get_danmu(self):
             while self.live and not self.deprecated:
                 if self.danmuWaitTime != -1 and self.danmuWaitTime < time.time():
-                    raise Exception('No danmu received in %ss'%self.maxNoDanMuWait)
+                    raise Exception('{} No danmu received in {}'.format(self.name, self.maxNoDanMuWait))
                 danmuThreadFn(self)
         self.heartThread = threading.Thread(target = heart_beat, args = (self,))
         self.heartThread.setDaemon(True)
