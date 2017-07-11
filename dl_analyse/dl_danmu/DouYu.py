@@ -29,17 +29,17 @@ class DouYuDanMuClient(AbstractDanMuClient):
         try:
             j = requests.get(url, timeout=5).json()
         except:
-            print(self.name + " timeout")
+            self.logger.error(self.name + " timeout")
             return False
         try:
             if j.get('error') != 0 or j['data'].get('room_status') != '1': return False
             # self.roomID = j['data']['room_id']
             return True
         except json.decoder.JSONDecodeError as e:
-            print("Inside Douyulive Function: {}. json is {}".format(e, j))
+            self.logger.critical("Inside Douyulive Function: {}. json is {}".format(e, j))
             return False
         except Exception as e:
-            print("Inside Douyulive Function:{}".format(e))
+            self.logger.critical("Inside Douyulive Function:{}".format(e))
 
     def _prepare_env(self):
         return ('openbarrage.douyutv.com', 8601), {'room_id': self.roomID}
@@ -74,6 +74,6 @@ class DouYuDanMuClient(AbstractDanMuClient):
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     # Modification
                     if msg['MsgType'] == 'danmu':
-                        print(self.name, msg['Content'])
+                        self.logger.debug(self.name, msg['Content'])
                         self.countDanmuFn(msg['Content'])
         return get_danmu, keep_alive # danmu, heart

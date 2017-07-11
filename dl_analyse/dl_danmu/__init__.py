@@ -124,7 +124,7 @@ class DanmuThread(threading.Thread):
             count_res = (self.__dc.get_count())
             try:
                 _log("{},{},{},{},{}\n".format(block_id, *count_res), counter_file)
-                self.logger.info("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
+                self.logger.debug("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_id, *count_res))
                 # counter_file.flush()
             except Exception as e:
@@ -132,16 +132,19 @@ class DanmuThread(threading.Thread):
 
             try:
                 if Record_Mode_ and block_id >= 3:
-                    self.logger.info("has {} douyu times and target number is {}".
-                         format(sum(i >= 2 for i in self.__dc.DouyuList),
+                    self.logger.debug("{} has {} douyu times and target number is {}".
+                         format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.DouyuList[-2] * self.__factor > 8:
+                    if self.__dc.DouyuList[-2] * self.__factor > 8 or self.__dc.LuckyList[-2] * self.__factor > 100:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
+                            l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
+                                      self.__dc.LuckyList[-2] * self.__factor / 700)
                             l_video_name = '{}_po:{0:.2f}_from:{}_to:{}'.\
-                                format(self.__abbr, (l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
+                                format(self.__abbr, l_pot,
                                        l_last_block_data[2][0], block_id)
-                            self.logger.info('should append {} to {}'.format(block_id, l_last_block_data[1]))
+                            self.logger.info('{} should append {} to {}'.format(self.__name, block_id,
+                                                                                l_last_block_data[1]))
                             threading.Thread(target=self.__recorder.append_block,
                                              args=(self.__record_id, block_id, l_last_block_data[1],
                                                    l_video_name)).start()
@@ -152,11 +155,12 @@ class DanmuThread(threading.Thread):
                                                   l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
+                            l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
                             l_video_name = '{}_pot:{0:.2f}_from:{}_to:{}' \
-                                .format(self.__abbr, l_c.douyu * self.__factor / 30, block_id - 3, block_id)
+                                .format(self.__abbr, l_pot, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
-                            self.logger.info('should combine {} to {}'.format(block_id - 3, block_id))
+                            self.logger.info('{} should combine {} to {}'.format(self.__name, block_id - 3, block_id))
                             threading.Thread(target=self.__recorder.combine_block,
                                              args=(self.__record_id, block_id - 3, block_id,
                                                    l_video_name)).start()
@@ -166,7 +170,7 @@ class DanmuThread(threading.Thread):
                                                                        block_id - 3)).start()
             except Exception as e:
                 self.logger.critical("In record has Exception {}".format(e))
-            self.logger.info("last_block_data is {}".format(l_last_block_data))
+            self.logger.debug("last_block_data is {}".format(l_last_block_data))
             block_id += 1
 
         self.__is_running = False
@@ -176,4 +180,5 @@ class DanmuThread(threading.Thread):
         counter_file.close()
         self.logger.info("===========DanmuThread of {} ends===========".format(self.__name))
         self.__recorder.stop_record(self.__record_id)
-        self.__recorder = Recorder()
+        self.__recorder = Recorder(self.__name, self.logger)
+

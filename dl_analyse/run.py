@@ -34,7 +34,7 @@ def main():
         logger = logging.getLogger(room['abbr'])
         logger.setLevel(logging.INFO)
         ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
+        ch.setLevel(logging.INFO)
         ch_formatter = logging.Formatter('%(asctime)s %(name)s %(message)s')
         ch.setFormatter(ch_formatter)
         logger.addHandler(ch)
