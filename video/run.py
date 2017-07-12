@@ -36,7 +36,6 @@ range_to_combined_hashtable = {}
 
 convert_command = 'cd output/process_results; for i in *.flv; do if [ ! -e ../converted/$i.mov ]; then ffmpeg -y -i $i -ar 44100 ../converted/$i.mov; fi; done'
 
-
 def stop_all_recording():
     for record_id in record_info:
         lock.acquire()
@@ -376,8 +375,12 @@ def stop():
                 return jsonify({"code": 0, "info" : REC_STATUS_STOPPED}), 200
     else:
         lock.release()
-        return jsonify({"code": 1, "info" : "id not in record info or process handler is None"}), 200
-
+        if(record_id not in record_info):
+            return jsonify({"code": 1, "info" : "id not in record info"}), 200
+        if(record_info[record_id]["ffmpeg_process_handler"] == None):
+            return jsonify({"code": 1, "info" : "record_info[record_id][\"ffmpeg_process_handler\"] == None"}), 200
+        if(terminated(record_info[record_id]["ffmpeg_process_handler"])):
+            return jsonify({"code": 1, "info" : "process already terminated"}), 200
     lock.release()
     return jsonify({"code": 1, "info" : "time outstop failed or already stopped"}), 200
 
