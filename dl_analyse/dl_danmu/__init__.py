@@ -124,7 +124,7 @@ class DanmuThread(threading.Thread):
 
             count_res = (self.__dc.get_count())
             try:
-                _log("{},{},{},{},{}\n".format(block_id, *count_res), counter_file)
+                counter_file.write("{},{},{},{},{}\n".format(block_id, *count_res))
                 self.logger.debug("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_id, *count_res))
                 # counter_file.flush()
@@ -144,8 +144,8 @@ class DanmuThread(threading.Thread):
                             l_video_name = '{}_po:{0:.2f}_from:{}_to:{}'.\
                                 format(self.__abbr, l_pot,
                                        l_last_block_data[2][0], block_id)
-                            self.logger.info('{} should append {} to {}'.format(self.__name, block_id,
-                                                                                l_last_block_data[1]))
+                            self.logger.info('{} should append {} to {}'.format(self.__name, l_last_block_data[2][0],
+                                                                                block_id))
                             threading.Thread(target=self.__recorder.append_block,
                                              args=(self.__record_id, block_id, l_last_block_data[1],
                                                    l_video_name)).start()
@@ -171,7 +171,7 @@ class DanmuThread(threading.Thread):
                                                                                 block_id - 3)).start()
             except Exception as e:
                 self.logger.critical("In record has Exception {}".format(e))
-            self.logger.debug("last_block_data is {}".format(l_last_block_data))
+            self.logger.info("last_block_data is {}".format(l_last_block_data))
             block_id += 1
 
         self.__is_running = False
