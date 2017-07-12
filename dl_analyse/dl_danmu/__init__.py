@@ -109,7 +109,7 @@ class DanmuThread(threading.Thread):
         block_id = 0
         counter_file = open(self.get_record_folder() + counter_filename, 'w')
         counter_file.write("block, danmu, 666, 学不来, 逗鱼时刻\n")
-        l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0)) # (is_processed, old_name, (block), (d,s,t,l))
+        l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0))  # (is_processed, old_name, (block), (d,s,t,l))
 
         # Not stopped by outer part
         while not self.__should_stop:
@@ -168,7 +168,7 @@ class DanmuThread(threading.Thread):
                     else:
                         l_last_block_data = (False, "")
                     threading.Thread(target=self.__recorder.delete_block, args=(self.__record_id, block_id - 3,
-                                                                       block_id - 3)).start()
+                                                                                block_id - 3)).start()
             except Exception as e:
                 self.logger.critical("In record has Exception {}".format(e))
             self.logger.debug("last_block_data is {}".format(l_last_block_data))
