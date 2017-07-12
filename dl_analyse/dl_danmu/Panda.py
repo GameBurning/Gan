@@ -61,9 +61,11 @@ class PandaDanMuClient(AbstractDanMuClient):
         while trial < 5:
             try:
                 roomId = self.roomID
-                url = 'http://www.panda.tv/ajax_chatroom?roomid=%s&_=%s'%(roomId, str(int(time.time())))
-                roomInfo = requests.get(url).json()
+                url = 'http://riven.panda.tv/chatroom/getinfo?roomid=%s'%(roomId)
+                roomInfo = requests.get(url, timeout=5).json()
+                self.logger.debug(roomInfo)
                 url = 'http://api.homer.panda.tv/chatroom/getinfo'
+
                 params = {
                     'rid': roomInfo['data']['rid'],
                     'roomid': roomId,
@@ -73,10 +75,10 @@ class PandaDanMuClient(AbstractDanMuClient):
                     '_': int(time.time()), }
                 serverInfo = requests.get(url, params).json()['data']
                 serverAddress = serverInfo['chat_addr_list'][0].split(':')
-                # print("after prepare_env:", (serverAddress[0], int(serverAddress[1])), serverInfo)
+                print("after prepare_env:", (serverAddress[0], int(serverAddress[1])), serverInfo)
                 return (serverAddress[0], int(serverAddress[1])), serverInfo
             except Exception as e:
-                self.logger.critical("prepare_env:", e, "serverInfo:", serverInfo)
+                self.logger.critical("prepare_env Exception: {} and serverInfo: {}".format(e, serverInfo))
                 time.sleep(10)
             finally:
                 trial += 1

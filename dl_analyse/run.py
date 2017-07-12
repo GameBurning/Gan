@@ -48,7 +48,7 @@ def main():
         ch = logging.StreamHandler()
         if args.level == 0:
             ch.setLevel(logging.DEBUG)
-        elif args.level == 1:
+        else:
             ch.setLevel(logging.INFO)
         ch_formatter = logging.Formatter('%(name)s %(message)s')
         ch.setFormatter(ch_formatter)
