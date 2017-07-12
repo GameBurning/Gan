@@ -45,18 +45,19 @@ class PandaDanMuClient(AbstractDanMuClient):
             j = requests.get('http://room.api.m.panda.tv/index.php?method=room.shareapi&roomid='
                              + str(self.roomID), timeout=5).json()
         except:
-            print(self.name + " timeout")
+            self.logger.error(self.name + " timeout")
             return False
         try:
             return j['data']['roominfo']['status'] == '2'
         except json.decoder.JSONDecodeError as e:
-            print("Inside Panda get_live Function: {}. Json is {}".format(e, j))
+            self.logger.critical("Inside Panda get_live Function: {}. Json is {}".format(e, j))
             return False
         except Exception as e:
-            print("Inside Panda get_live Function:{}. Json is {}".format(e, j))
+            self.logger.critical("Inside Panda get_live Function:{}. Json is {}".format(e, j))
 
     def _prepare_env(self):
         trial = 0
+        serverInfo = ""
         while trial < 5:
             try:
                 roomId = self.roomID
@@ -72,10 +73,14 @@ class PandaDanMuClient(AbstractDanMuClient):
                     '_': int(time.time()), }
                 serverInfo = requests.get(url, params).json()['data']
                 serverAddress = serverInfo['chat_addr_list'][0].split(':')
+                # print("after prepare_env:", (serverAddress[0], int(serverAddress[1])), serverInfo)
                 return (serverAddress[0], int(serverAddress[1])), serverInfo
             except Exception as e:
-                print(e)
-        return (0, 0), 0
+                self.logger.critical("prepare_env:", e, "serverInfo:", serverInfo)
+                time.sleep(10)
+            finally:
+                trial += 1
+        self.logger.critical("prepare danmu env failed")
 
     def _init_socket(self, danmu, roomInfo):
         data = [
@@ -110,7 +115,7 @@ class PandaDanMuClient(AbstractDanMuClient):
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     if msg['MsgType'] == 'danmu':
-                        print(self.name, msg['Content'])
+                        self.logger.debug(self.name, msg['Content'])
                         self.countDanmuFn(msg['Content'])
         def heart_beat(self):
             self.danmuSocket.push(b'\x00\x06\x00\x06')

@@ -2,8 +2,9 @@
 import os
 import threading
 import time
+import logging
 
-from . import record
+from .record import Recorder
 from .DouYu import DouYuDanMuClient
 from .Panda import PandaDanMuClient
 from .Zhanqi import ZhanQiDanMuClient
@@ -13,7 +14,7 @@ from .DanmuCounter import DanmuCounter
 
 class DanmuThread(threading.Thread):
 
-    def __init__(self, room_id, platform, name, abbr, live_status_rescan_interval=30):
+    def __init__(self, room_id, platform, name, abbr, factor, logger, live_status_rescan_interval=30):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
         self.__name         = name
@@ -25,17 +26,19 @@ class DanmuThread(threading.Thread):
         self.__baseClient   = None
         self.__client       = None
         self.__record_id    = ""
+        self.__factor       = factor
         self.__live_status_rescan_interval = live_status_rescan_interval
-        self.__dc = DanmuCounter(name)
-        self.__url = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
+        self.__dc           = DanmuCounter(name)
+        self.__url          = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
         client_dict = {'panda': PandaDanMuClient,
                        'douyu': DouYuDanMuClient,
                        'zhanqi': ZhanQiDanMuClient}
+        self.logger = logger
         if platform not in client_dict.keys():
             raise KeyError
-        self.__baseClient = client_dict[platform]
-        logfile_path = self.get_record_folder() + '{}_danmu_log'.format(self.__record_id)
-        self.__client = self.__baseClient(self.__room_id, self.__name, self.__dc.count_danmu, logfile_path)
+        self.__baseClient   = client_dict[platform]
+        self.__client = self.__baseClient(self.__room_id, self.__name, self.__dc.count_danmu, self.logger)
+        self.__recorder    = Recorder(self.__name, self.logger)
 
     def room_is_live(self):
         return self.__client.get_live_status()
@@ -54,36 +57,37 @@ class DanmuThread(threading.Thread):
         return record_folder_dir
 
     def gan(self):
+        # Log method for csv
+        def _log(_content, _file):
+            print(self.__name + ", " + _content)
+            _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content + "\n")
+            _file.flush()
 
         # Danmu Thread On
-        print("===========DanmuThread starts===========")
+        self.logger.info("===========DanmuThread of {} starts===========".format(self.__name))
 
         # Start recording
         try:
             if Record_Mode_:
                 trial_counter = 0
                 while trial_counter < 5:
-                    m = record.start_record(self.__room_id, block_size=Block_Size_In_Second_,
+                    m = self.__recorder.start_record(self.__room_id, block_size=Block_Size_In_Second_,
                                             platform=self.__platform)
                     (record_id, start_time) = m
-                    debug_file_path = self.get_record_folder() + '{}_danmu_log'.format(self.__record_id)
-                    debug_file = open(debug_file_path, 'a', encoding='utf-8')
-
-                    def _log(_content, _file=debug_file):
-                        print(self.__name + ", " + _content)
-                        if _file != debug_file:
-                            _file.write(_content + "\n")
-                        else:
-                            _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content + "\n")
-                        _file.flush()
-
-                    _log("start_record of {} feedback: {}".format(self.__name, m))
                     if start_time != -1:
                         start_time = int(start_time)
                         self.__record_id = record_id
+
+                        debug_file_path = self.get_record_folder() + 'danmu_log_{}'.format(self.__record_id)
+                        fh = logging.FileHandler(filename=debug_file_path)
+                        fh.setLevel(logging.INFO)
+                        fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%m/%d %I:%M:%S')
+                        fh.setFormatter(fh_formatter)
+                        self.logger.addHandler(fh)
+                        self.logger.info("start_record of {} feedback: {}".format(self.__name, m))
                         break
                     else:
-                        _log("{} can't get steam".format(self.__name))
+                        self.logger.info("start_record of {} failed: {}".format(self.__name, m))
                         time.sleep(5)
                         trial_counter += 1
                 else:
@@ -95,56 +99,55 @@ class DanmuThread(threading.Thread):
             self.__is_running = False
             print("Starting has error and return")
             return
-        _log("===========Successfully start recording===========")
+        self.logger.info("===========Successfully start recording===========")
+        self.__client.deprecated = False
         threading.Thread(target=self.__client.start).start()
-
-
 
         # Recording starts and now is block 0
         self.__is_running = True
         counter_filename = self.__name + "_" + self.__record_id + ".csv"
         block_id = 0
-        counter_file = open(self.get_record_folder() + counter_filename, 'a')
-        counter_file.write("time, block, danmu, 666, 学不来, 逗鱼时刻\n")
-        l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0)) # (is_processed, old_name, (block), (d,s,t,l))
+        counter_file = open(self.get_record_folder() + counter_filename, 'w')
+        counter_file.write("block, danmu, 666, 学不来, 逗鱼时刻\n")
+        l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0))  # (is_processed, old_name, (block), (d,s,t,l))
 
         # Not stopped by outer part
         while not self.__should_stop:
             self.__dc.add_block()
-            block_start_time = time.ctime(time.time())  # For record
             block_end_time = start_time + Block_Size_In_Second_ * (block_id + 1)  # For calculating sleeping_time
             sleep_time = block_end_time - time.time()
-            # print('{}\'s wait time is :{}'.format(self.__name, sleep_time))
             time.sleep(sleep_time)
 
             if not os.path.isfile(self.get_record_folder() + str(block_id) + '.flv'):
-                _log("No recording file {}, exit".format(self.get_record_folder() + str(block_id) + '.flv'))
+                self.logger.error("No recording file {}, exit".format(self.get_record_folder() + str(block_id) + '.flv'))
                 break
 
             count_res = (self.__dc.get_count())
             try:
-                _log("{},{},{},{},{},{}\n".format(block_start_time, block_id, *count_res), counter_file)
-                _log("logfile: time:{}, block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
-                     format(block_start_time, block_id, *count_res))
+                _log("{},{},{},{},{}\n".format(block_id, *count_res), counter_file)
+                self.logger.debug("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
+                     format(block_id, *count_res))
                 # counter_file.flush()
             except Exception as e:
-                _log("inside while loop in gan: {}".format(e))
+                self.logger.critical("Except inside while loop in gan: {}. Counter is {}".format(e, count_res))
 
             try:
                 if Record_Mode_ and block_id >= 3:
-                    _log("has {} douyu times and target number is {}".
-                         format(sum(i >= 2 for i in self.__dc.DouyuList),
+                    self.logger.debug("{} has {} douyu times and target number is {}".
+                         format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.get_score(-2) >= ScoreThreshold_ or self.__dc.DouyuList[-2] > 2:
+                    if self.__dc.DouyuList[-2] * self.__factor > 8 or self.__dc.LuckyList[-2] * self.__factor > 100:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
-                            l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}'.\
-                                format(self.__abbr, l_c.douyu + l_last_block_data[3][0], l_last_block_data[2][0],
-                                       block_id, self.__dc.get_score(-2)+l_last_block_data[3][1],
-                                       l_last_block_data[3][2] + l_c.triple, l_last_block_data[3][3] + l_c.lucky)
-                            _log('should append {} to {}'.format(block_id, l_last_block_data[1]))
-                            threading.Thread(target=record.append_block,
-                                             args=(self.__record_id, debug_file_path, block_id, l_last_block_data[1],
+                            l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
+                                      self.__dc.LuckyList[-2] * self.__factor / 700)
+                            l_video_name = '{}_po:{0:.2f}_from:{}_to:{}'.\
+                                format(self.__abbr, l_pot,
+                                       l_last_block_data[2][0], block_id)
+                            self.logger.info('{} should append {} to {}'.format(self.__name, block_id,
+                                                                                l_last_block_data[1]))
+                            threading.Thread(target=self.__recorder.append_block,
+                                             args=(self.__record_id, block_id, l_last_block_data[1],
                                                    l_video_name)).start()
                             l_last_block_data = (True, l_video_name, (l_last_block_data[2][0], block_id),
                                                  (l_last_block_data[3][0] + l_c.douyu,
@@ -153,22 +156,22 @@ class DanmuThread(threading.Thread):
                                                   l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
-                            l_video_name = '{}_d{}_b{}to{}_s{}_t{}_l{}' \
-                                .format(self.__abbr, l_c.douyu, block_id - 3, block_id, self.__dc.get_score(-2),
-                                        l_c.triple, l_c.lucky)
+                            l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
+                            l_video_name = '{}_pot:{0:.2f}_from:{}_to:{}' \
+                                .format(self.__abbr, l_pot, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
-                            _log('should combine {} to {}'.format(block_id - 3, block_id))
-                            threading.Thread(target=record.combine_block,
-                                             args=(self.__record_id, debug_file_path, block_id - 3, block_id,
+                            self.logger.info('{} should combine {} to {}'.format(self.__name, block_id - 3, block_id))
+                            threading.Thread(target=self.__recorder.combine_block,
+                                             args=(self.__record_id, block_id - 3, block_id,
                                                    l_video_name)).start()
                     else:
                         l_last_block_data = (False, "")
-                    threading.Thread(target=record.delete_block, args=(self.__record_id, debug_file_path, block_id - 3,
-                                                                       block_id - 3)).start()
+                    threading.Thread(target=self.__recorder.delete_block, args=(self.__record_id, block_id - 3,
+                                                                                block_id - 3)).start()
             except Exception as e:
-                _log("In record has Exception {}".format(e))
-            _log("last_block_data is {}".format(l_last_block_data))
+                self.logger.critical("In record has Exception {}".format(e))
+            self.logger.debug("last_block_data is {}".format(l_last_block_data))
             block_id += 1
 
         self.__is_running = False
@@ -176,6 +179,7 @@ class DanmuThread(threading.Thread):
         if self.__client:
             self.__client.deprecated = True
         counter_file.close()
-        _log("===========Thread ends===========")
-        record.stop_record(self.__record_id, debug_file_path)
-        debug_file.close()
+        self.logger.info("===========DanmuThread of {} ends===========".format(self.__name))
+        self.__recorder.stop_record(self.__record_id)
+        self.__recorder = Recorder(self.__name, self.logger)
+

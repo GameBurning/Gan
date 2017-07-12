@@ -1,4 +1,4 @@
-import abc, threading, time, traceback
+import abc, threading, time, traceback, logging
 
 
 # This client will auto-reload if exception is raised inside and write a log
@@ -11,7 +11,7 @@ import abc, threading, time, traceback
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu_fn, log_file_path, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, logger, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
         self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -23,10 +23,10 @@ class AbstractDanMuClient(object):
         self.danmuWaitTime = -1
         self.danmuProcess = None
         self.countDanmuFn = count_danmu_fn
-        self.log_file_path = log_file_path
+        self.logger = logger
 
     def start(self):
-        self._log("===========Socket thread of {} starts===========".format(self.name))
+        self.logger.info("===========Socket thread of {} starts===========".format(self.name))
         while not self.deprecated:
             try:
                 while not self.deprecated:
@@ -37,9 +37,11 @@ class AbstractDanMuClient(object):
                 # if stopped by outer client, then stop this function
                 else:
                     break
-                danmuSocketInfo, roomInfo = self._prepare_env()
-                if roomInfo == 0:
-                    time.sleep(self.anchorStatusRescanTime / 2)
+                try:
+                    danmuSocketInfo, roomInfo = self._prepare_env()
+                except Exception as e:
+                    self.logger.critical('prepare env failed and exception is {}'.format(e))
+                    time.sleep(20)
                     continue
                 if self.danmuSocket: self.danmuSocket.close()
                 self.danmuWaitTime = -1
@@ -48,24 +50,18 @@ class AbstractDanMuClient(object):
                 self._wrap_thread(danmuThreadFn, heartThreadFn)
                 self._start_receive()
             except Exception as e:
-                self._log(traceback.format_exc())
+                self.logger.critical(traceback.format_exc())
                 time.sleep(5)
             else:
                 break
-
-    def _log(self, _content):
-        print(_content)
-        with open(self.log_file_path, 'a') as _f:
-            _f.write(time.ctime(time.time()) + ": " + _content + "\n")
 
     def _socket_timeout(self, fn):
         # if socket went wrong, reload the whole client
         def __socket_timeout(*args, **kwargs):
             try:
                 fn(*args, **kwargs)
-
             except Exception as e:
-                self._log(traceback.format_exc())
+                self.logger.critical(traceback.format_exc())
                 if not self.live: return
                 self.live = False
                 # In case thread is blocked and can't stop, set a max wait time
@@ -85,7 +81,7 @@ class AbstractDanMuClient(object):
         def get_danmu(self):
             while self.live and not self.deprecated:
                 if self.danmuWaitTime != -1 and self.danmuWaitTime < time.time():
-                    raise Exception('No danmu received in %ss'%self.maxNoDanMuWait)
+                    raise Exception('{} No danmu received in {}'.format(self.name, self.maxNoDanMuWait))
                 danmuThreadFn(self)
         self.heartThread = threading.Thread(target = heart_beat, args = (self,))
         self.heartThread.setDaemon(True)
