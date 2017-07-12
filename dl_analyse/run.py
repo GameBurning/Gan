@@ -32,10 +32,11 @@ def load_init() -> []:
                 if l_info_dict.get("test", None):
                     room_info_list.append(l_info_dict)
             else:
-                if args.douyu and l_info_dict["platform"] == "douyu":
-                    room_info_list.append(l_info_dict)
-                if args.panda and l_info_dict["platform"] == "panda":
-                    room_info_list.append(l_info_dict)
+                if not l_info_dict.get("test", None):
+                    if args.douyu and l_info_dict["platform"] == "douyu":
+                        room_info_list.append(l_info_dict)
+                    if args.panda and l_info_dict["platform"] == "panda":
+                        room_info_list.append(l_info_dict)
     return room_info_list
 
 
