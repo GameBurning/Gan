@@ -130,7 +130,7 @@ class DanmuThread(threading.Thread):
             try:
                 counter_file.write("{},{},{},{},{}\n".format(block_id, *count_res))
                 counter_file.flush()
-                self.logger.debug("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
+                self.logger.info("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_id, *count_res))
                 # counter_file.flush()
             except Exception as e:
