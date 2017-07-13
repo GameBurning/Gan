@@ -14,7 +14,8 @@ from .DanmuCounter import DanmuCounter
 
 class DanmuThread(threading.Thread):
 
-    def __init__(self, room_id, platform, name, abbr, factor, logger, live_status_rescan_interval=30):
+    def __init__(self, room_id, platform, name, abbr, factor, logger, block_size = Block_Size_In_Second_,
+                 live_status_rescan_interval=30):
         threading.Thread.__init__(self)
         self.__room_id      = room_id
         self.__name         = name
@@ -28,6 +29,7 @@ class DanmuThread(threading.Thread):
         self.__record_id    = ""
         self.__factor       = factor
         self.__live_status_rescan_interval = live_status_rescan_interval
+        self.__block_size   = block_size
         self.__dc           = DanmuCounter(name)
         self.__url          = 'http://' + PlatformUrl_[self.__platform] + self.__room_id
         client_dict = {'panda': PandaDanMuClient,
@@ -43,7 +45,7 @@ class DanmuThread(threading.Thread):
     def room_is_live(self):
         return self.__client.get_live_status()
 
-    def run(self, block_size=45):
+    def run(self):
         while True:
             l_live_status = self.room_is_live()
             print('{} is alive? {}'.format(self.__name, l_live_status))
@@ -71,7 +73,7 @@ class DanmuThread(threading.Thread):
             if Record_Mode_:
                 trial_counter = 0
                 while trial_counter < 5:
-                    m = self.__recorder.start_record(self.__room_id, block_size=Block_Size_In_Second_,
+                    m = self.__recorder.start_record(roomid=self.__room_id, block_size=self.__block_size,
                                             platform=self.__platform)
                     (record_id, start_time) = m
                     if start_time != -1:
@@ -84,6 +86,8 @@ class DanmuThread(threading.Thread):
                         fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%m/%d %I:%M:%S')
                         fh.setFormatter(fh_formatter)
                         self.logger.addHandler(fh)
+                        self.__recorder.logger.addHandler(fh)
+                        self.__client.logger.addHandler(fh)
                         self.logger.info("start_record of {} feedback: {}".format(self.__name, m))
                         break
                     else:
@@ -114,7 +118,7 @@ class DanmuThread(threading.Thread):
         # Not stopped by outer part
         while not self.__should_stop:
             self.__dc.add_block()
-            block_end_time = start_time + Block_Size_In_Second_ * (block_id + 1)  # For calculating sleeping_time
+            block_end_time = start_time + self.__block_size * (block_id + 1)  # For calculating sleeping_time
             sleep_time = block_end_time - time.time()
             time.sleep(sleep_time)
 
@@ -125,6 +129,7 @@ class DanmuThread(threading.Thread):
             count_res = (self.__dc.get_count())
             try:
                 counter_file.write("{},{},{},{},{}\n".format(block_id, *count_res))
+                counter_file.flush()
                 self.logger.debug("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_id, *count_res))
                 # counter_file.flush()
@@ -141,13 +146,14 @@ class DanmuThread(threading.Thread):
                             l_c = self.__dc.get_count(-2)
                             l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
                                       self.__dc.LuckyList[-2] * self.__factor / 700)
-                            l_video_name = '{}_po:{0:.2f}_from:{}_to:{}'.\
-                                format(self.__abbr, l_pot,
+                            l_video_name = '{}_pos:{:.2f}_from:{}_to:{}'\
+                                .format(self.__abbr, l_pot,
                                        l_last_block_data[2][0], block_id)
+
                             self.logger.info('{} should append {} to {}'.format(self.__name, l_last_block_data[2][0],
                                                                                 block_id))
                             threading.Thread(target=self.__recorder.append_block,
-                                             args=(self.__record_id, block_id, l_last_block_data[1],
+                                             args=(block_id, l_last_block_data[1],
                                                    l_video_name)).start()
                             l_last_block_data = (True, l_video_name, (l_last_block_data[2][0], block_id),
                                                  (l_last_block_data[3][0] + l_c.douyu,
@@ -157,18 +163,18 @@ class DanmuThread(threading.Thread):
                         else:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
-                            l_video_name = '{}_pot:{0:.2f}_from:{}_to:{}' \
+                            l_video_name = '{}_pos:{:.2f}_from:{}_to:{}'\
                                 .format(self.__abbr, l_pot, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
+                            print('work here 6')
                             self.logger.info('{} should combine {} to {}'.format(self.__name, block_id - 3, block_id))
                             threading.Thread(target=self.__recorder.combine_block,
-                                             args=(self.__record_id, block_id - 3, block_id,
+                                             args=(block_id - 3, block_id,
                                                    l_video_name)).start()
                     else:
                         l_last_block_data = (False, "")
-                    threading.Thread(target=self.__recorder.delete_block, args=(self.__record_id, block_id - 3,
-                                                                                block_id - 3)).start()
+                    threading.Thread(target=self.__recorder.delete_block, args=(block_id - 3, block_id - 3)).start()
             except Exception as e:
                 self.logger.critical("In record has Exception {}".format(e))
             self.logger.info("last_block_data is {}".format(l_last_block_data))
@@ -180,6 +186,5 @@ class DanmuThread(threading.Thread):
             self.__client.deprecated = True
         counter_file.close()
         self.logger.info("===========DanmuThread of {} ends===========".format(self.__name))
-        self.__recorder.stop_record(self.__record_id)
-        self.__recorder = Recorder(self.__name, self.logger)
+        self.__recorder.stop_record()
 

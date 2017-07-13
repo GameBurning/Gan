@@ -22,11 +22,13 @@ def load_init() -> []:
     with open(INIT_PROPERTIES, 'r', encoding='utf-8') as f:
         lines = f.readlines()
         for line in lines:
+            if line[:2] == "//":
+                continue
             l_info_dict = {}
             for info in line.split():
                 l_info_dict[info.split(':')[0].strip()] = info.split(':')[1].strip()
-            if not args.douyu and not args.panda:
-                print("Should append -d or -p")
+            if not args.douyu and not args.panda and not args.test:
+                print("Should append -d or -p or -t")
                 exit()
             if args.test:
                 if l_info_dict.get("test", None):
@@ -46,15 +48,19 @@ def main():
         logger = logging.getLogger(room['abbr'])
         logger.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
-        if args.level == 0:
+        if args.level == 0 or args.test:
             ch.setLevel(logging.DEBUG)
         else:
             ch.setLevel(logging.INFO)
         ch_formatter = logging.Formatter('%(name)s %(message)s')
         ch.setFormatter(ch_formatter)
         logger.addHandler(ch)
-        room_thread = DanmuThread(room_id=room["id"], platform=room['platform'], name=room['name'], abbr=room['abbr'],
-                                  factor=float(room['factor']), logger=logger)
+        if args.test:
+            room_thread = DanmuThread(room_id=room["id"], platform=room['platform'], name=room['name'],
+                                      abbr=room['abbr'], factor=float(room['factor']), logger=logger, block_size=20)
+        else:
+            room_thread = DanmuThread(room_id=room["id"], platform=room['platform'], name=room['name'],
+                                      abbr=room['abbr'], factor=float(room['factor']), logger=logger)
         room_thread.start()
 
 main()

@@ -74,6 +74,6 @@ class DouYuDanMuClient(AbstractDanMuClient):
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
                     # Modification
                     if msg['MsgType'] == 'danmu':
-                        self.logger.debug(self.name + msg['Content'])
+                        self.logger.debug(msg['Content'])
                         self.countDanmuFn(msg['Content'])
         return get_danmu, keep_alive # danmu, heart

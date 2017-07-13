@@ -24,8 +24,7 @@ class Recorder:
             self.logger.error("{}'s start failed and json info is {}".format(roomid, r.json()['info']))
             return -1, -1
 
-    def stop_record(self, logfile_path, port=5002):
-        f = open(logfile_path, 'a')
+    def stop_record(self, port=5002):
         self.logger.info('get stop command for {} and now requesting it to video server\n'.format(self.record_id))
         r = requests.post('http://127.0.0.1:{}/stop'.format(port), data={"record_id": self.record_id})
         self.logger.info('{}: {}\n'.format(time.ctime(time.time()), r.json()))
@@ -36,7 +35,7 @@ class Recorder:
             self.logger.error("{} stop failed and json info is {}".format(self.record_id, r.json()['info']))
             return False
 
-    def delete_block(self, logfile_path, start_id, end_id, port=5002):
+    def delete_block(self, start_id, end_id, port=5002):
         self.logger.info('get delete command for {} to delete {} to {} '
              'and now requesting it to video server\n'.format(self.record_id, start_id, end_id))
         self.logger.info('delete block from {} to {}'.format(start_id, end_id))
@@ -52,7 +51,7 @@ class Recorder:
             self.logger.error("{}'s delete failed and json info is {}\n".format(self.record_id, r.json()['info']))
             return False
 
-    def combine_block(self, logfile_path, start_id, end_id, name, port=5002):
+    def combine_block(self, start_id, end_id, name, port=5002):
         self.logger.info('get combine command for {} to combine {} to {} and now '
              'requesting it to video server\n'.format(self.record_id, start_id, end_id))
         self.logger.info('combine block from {} to {} into {}'.format(start_id, end_id, name))
@@ -60,7 +59,7 @@ class Recorder:
                 'end_block_id': end_id, 'start_block_offset': 0,
                 "end_block_offset": -1}
         r = requests.post('http://127.0.0.1:{}/process'.format(port), data=para)
-        f.write('{}: {}\n'.format(time.ctime(time.time()), r.json()))
+        self.logger.info('{}: {}\n'.format(time.ctime(time.time()), r.json()))
         if r.json()['code'] == 0:
             self.logger.info("{}'s({}) combination succeed and json info is {}\n".format(name, self.record_id,
                                                                                          r.json()['info']))
@@ -70,7 +69,7 @@ class Recorder:
                                                                                         r.json()['info']))
             return False
 
-    def append_block(self, logfile_path, block_id, old_name, new_name, port=5002):
+    def append_block(self, block_id, old_name, new_name, port=5002):
         self.logger.info('get append request to append append_id {} to old_name {}'.format(block_id, old_name))
         self.logger.info('append block from {} to {}'.format(block_id, old_name))
         para = {'name': old_name, 'new_name': new_name, 'block_id': block_id, 'record_id': self.record_id}
