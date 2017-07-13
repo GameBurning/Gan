@@ -112,7 +112,7 @@ class DanmuThread(threading.Thread):
         counter_filename = self.__name + "_" + self.__record_id + ".csv"
         block_id = 0
         counter_file = open(self.get_record_folder() + counter_filename, 'w')
-        counter_file.write("block, danmu, 666, 学不来, 逗鱼时刻\n")
+        counter_file.write("block, danmu, 666, lucky, douyu\n")
         l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0))  # (is_processed, old_name, (block), (d,s,t,l))
 
         # Not stopped by outer part
@@ -129,10 +129,9 @@ class DanmuThread(threading.Thread):
             count_res = (self.__dc.get_count())
             try:
                 counter_file.write("{},{},{},{},{}\n".format(block_id, *count_res))
-                counter_file.flush()
                 self.logger.info("logfile: block:{}, danmu:{}, 666:{}, gou:{}, douyu:{}".
                      format(block_id, *count_res))
-                # counter_file.flush()
+                counter_file.flush()
             except Exception as e:
                 self.logger.critical("Except inside while loop in gan: {}. Counter is {}".format(e, count_res))
 
@@ -146,7 +145,7 @@ class DanmuThread(threading.Thread):
                             l_c = self.__dc.get_count(-2)
                             l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
                                       self.__dc.LuckyList[-2] * self.__factor / 700)
-                            l_video_name = '{}_pos:{:.2f}_from:{}_to:{}'\
+                            l_video_name = '{}_pos{:.2f}_from{}_to{}'\
                                 .format(self.__abbr, l_pot,
                                        l_last_block_data[2][0], block_id)
 
@@ -163,7 +162,7 @@ class DanmuThread(threading.Thread):
                         else:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
-                            l_video_name = '{}_pos:{:.2f}_from:{}_to:{}'\
+                            l_video_name = '{}_pos{:.2f}_from{}_to{}'\
                                 .format(self.__abbr, l_pot, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
