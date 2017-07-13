@@ -145,7 +145,7 @@ class DanmuThread(threading.Thread):
                             l_c = self.__dc.get_count(-2)
                             l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
                                       self.__dc.LuckyList[-2] * self.__factor / 700)
-                            l_video_name = '{}_pos{:.2f}_from{}_to{}'\
+                            l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(self.__abbr, l_pot,
                                        l_last_block_data[2][0], block_id)
 
@@ -162,7 +162,7 @@ class DanmuThread(threading.Thread):
                         else:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
-                            l_video_name = '{}_pos{:.2f}_from{}_to{}'\
+                            l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(self.__abbr, l_pot, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
