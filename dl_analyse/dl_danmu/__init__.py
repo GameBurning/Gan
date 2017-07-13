@@ -177,7 +177,7 @@ class DanmuThread(threading.Thread):
                     threading.Thread(target=self.__recorder.delete_block, args=(block_id - 3, block_id - 3)).start()
             except Exception as e:
                 self.logger.critical("In record has Exception {}".format(e))
-            self.logger.info("last_block_data is {}".format(l_last_block_data))
+            self.logger.debug("last_block_data is {}".format(l_last_block_data))
             block_id += 1
 
         self.__is_running = False
