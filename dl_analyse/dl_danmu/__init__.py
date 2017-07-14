@@ -53,17 +53,15 @@ class DanmuThread(threading.Thread):
                 self.gan()
             time.sleep(self.__live_status_rescan_interval)
 
-    def get_record_folder(self):
-        _dir = os.path.expanduser(LogFilePath_)
-        record_folder_dir = _dir + self.__record_id + '/'
-        return record_folder_dir
-
     def gan(self):
         # Log method for csv
-        def _log(_content, _file):
-            print(self.__name + ", " + _content)
-            _file.write(time.ctime(time.time()) + ": " + self.__name + ", " + _content + "\n")
-            _file.flush()
+        def get_record_folder():
+            _dir = os.path.expanduser(LogFilePath_)
+            record_folder_dir = _dir + self.__record_id + '/'
+            return record_folder_dir
+
+        def calc_possibility(actual_num, middle_num):
+            return -1/(actual_num + 2 - middle_num) + 1
 
         # Danmu Thread On
         self.logger.info("===========DanmuThread of {} starts===========".format(self.__name))
@@ -80,7 +78,7 @@ class DanmuThread(threading.Thread):
                         start_time = int(start_time)
                         self.__record_id = record_id
 
-                        debug_file_path = self.get_record_folder() + 'danmu_log_{}'.format(self.__record_id)
+                        debug_file_path = get_record_folder() + 'danmu_log_{}'.format(self.__record_id)
                         fh = logging.FileHandler(filename=debug_file_path)
                         fh.setLevel(logging.INFO)
                         fh_formatter = logging.Formatter('%(asctime)s %(message)s', datefmt='%m/%d %I:%M:%S')
@@ -111,7 +109,7 @@ class DanmuThread(threading.Thread):
         self.__is_running = True
         counter_filename = self.__name + "_" + self.__record_id + ".csv"
         block_id = 0
-        counter_file = open(self.get_record_folder() + counter_filename, 'w')
+        counter_file = open(get_record_folder() + counter_filename, 'w')
         counter_file.write("block, danmu, 666, lucky, douyu\n")
         l_last_block_data = (False, "", (0, 0), (0, 0, 0, 0))  # (is_processed, old_name, (block), (d,s,t,l))
 
@@ -122,8 +120,8 @@ class DanmuThread(threading.Thread):
             sleep_time = block_end_time - time.time()
             time.sleep(sleep_time)
 
-            if not os.path.isfile(self.get_record_folder() + str(block_id) + '.flv'):
-                self.logger.error("No recording file {}, exit".format(self.get_record_folder() + str(block_id) + '.flv'))
+            if not os.path.isfile(get_record_folder() + str(block_id) + '.flv'):
+                self.logger.error("No recording file {}, exit".format(get_record_folder() + str(block_id) + '.flv'))
                 break
 
             count_res = (self.__dc.get_count())
@@ -137,17 +135,17 @@ class DanmuThread(threading.Thread):
 
             try:
                 if Record_Mode_ and block_id >= 3:
-                    self.logger.debug("{} has {} douyu times and target number is {}".
-                         format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
+                    self.logger.debug("{} has {} douyu times and target number is {}"
+                        .format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
                     if self.__dc.DouyuList[-2] * self.__factor > 4 or self.__dc.LuckyList[-2] * self.__factor > 40:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
-                            l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
-                                      self.__dc.LuckyList[-2] * self.__factor / 700)
+                            l_pot = max(calc_possibility((l_c.douyu + l_last_block_data[3][0]) * self.__factor, 5),
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 40))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr,
-                                       l_last_block_data[2][0], block_id)
+                                        l_last_block_data[2][0], block_id)
 
                             self.logger.info('{} should append {} to {}'.format(self.__name, l_last_block_data[2][0],
                                                                                 block_id))
@@ -161,12 +159,12 @@ class DanmuThread(threading.Thread):
                                                   l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
-                            l_pot = max(l_c.douyu * self.__factor / 30, self.__dc.LuckyList[-2] * self.__factor / 500)
+                            l_pot = max(calc_possibility(l_c.douyu * self.__factor, 5),
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 40))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
                                                  (l_c.douyu, self.__dc.get_score(-2), l_c.triple, l_c.lucky))
-                            print('work here 6')
                             self.logger.info('{} should combine {} to {}'.format(self.__name, block_id - 3, block_id))
                             threading.Thread(target=self.__recorder.combine_block,
                                              args=(block_id - 3, block_id,
