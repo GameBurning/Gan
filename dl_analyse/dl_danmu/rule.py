@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 # Danmu Rules
-Douyu_ = ('时刻', '天天卡牌', '逗鱼')
+Douyu_ = ('时刻', '天天卡牌', '闭嘴', '逗鱼')
 Lucky_ = ('学不来', '狗')
 Triple_ = ('66')
 
