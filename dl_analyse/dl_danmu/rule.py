@@ -19,7 +19,7 @@ PlatformUrl_ = {
 ScoreRuleTuple = namedtuple("ScoreRuleTuple", ["douyu", "triple", "lucky"])
 ScoreRule_ = ScoreRuleTuple(50, 6, 2)
 ScoreThreshold_ = 2000
-Block_Size_In_Second_ = 45
+Block_Size_In_Second_ = 60
 Block_Num_Per_Video_ = 4
 
 
