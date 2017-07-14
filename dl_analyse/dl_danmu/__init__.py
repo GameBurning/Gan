@@ -140,7 +140,7 @@ class DanmuThread(threading.Thread):
                     self.logger.debug("{} has {} douyu times and target number is {}".
                          format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.DouyuList[-2] * self.__factor > 5 or self.__dc.LuckyList[-2] * self.__factor > 40:
+                    if self.__dc.DouyuList[-2] * self.__factor > 4 or self.__dc.LuckyList[-2] * self.__factor > 40:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max((l_c.douyu + l_last_block_data[3][0]) * self.__factor / 40,
