@@ -63,6 +63,9 @@ class DanmuThread(threading.Thread):
         def calc_possibility(actual_num, middle_num):
             return -1/(actual_num + 2 - middle_num) + 1
 
+        assert calc_possibility(5, 5) == 0.5, "calc_possibility wrong"
+        assert calc_possibility(10000, 5) < 1, "calc_possibility >= 1"
+
         # Danmu Thread On
         self.logger.info("===========DanmuThread of {} starts===========".format(self.__name))
 
