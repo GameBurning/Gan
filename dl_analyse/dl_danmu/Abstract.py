@@ -11,7 +11,7 @@ import abc, threading, time, traceback, logging
 class AbstractDanMuClient(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, room_id, name, count_danmu_fn, logger, maxNoDanMuWait = 180, anchorStatusRescanTime = 30):
+    def __init__(self, room_id, name, count_danmu_fn, logger, maxNoDanMuWait=90, anchorStatusRescanTime=30):
         self.roomID = room_id
         self.name = name
         self.maxNoDanMuWait = maxNoDanMuWait
@@ -94,7 +94,7 @@ class AbstractDanMuClient(object):
         self.live = True
         self.danmuThread.start()
         self.heartThread.start()
-        self.danmuWaitTime = time.time() + 20
+        self.danmuWaitTime = time.time() + self.maxNoDanMuWait
 
     def thread_alive(self):
         if self.danmuSocket is None or not self.danmuThread.isAlive():
