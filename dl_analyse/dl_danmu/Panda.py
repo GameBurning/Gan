@@ -107,12 +107,9 @@ class PandaDanMuClient(AbstractDanMuClient):
             for msg in re.findall(b'({"type":.*?}})', content):
                 try:
                     msg = json.loads(msg.decode('utf8', 'ignore'))
-                    msg['NickName'] = msg.get('data', {}).get('from', {}
-                        ).get('nickName', '')
                     msg['Content']  = msg.get('data', {}).get('content', '')
-                    msg['MsgType']  = {'1': 'danmu', '206': 'gift'
-                        }.get(msg['type'], 'other')
-                except:
+                except Exception as e:
+                    self.logger.error(e)
                     pass
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
