@@ -13,7 +13,7 @@ parser.add_argument("-p", "--panda", help="run for panda",
                     action="store_true")
 parser.add_argument("-t", "--test", help="run test rooms",
                     action="store_true")
-parser.add_argument("--level", help="choose logging level, 0 is Debug level, 1 is Info level", type=int)
+parser.add_argument("-l", "--level", help="choose logging level, 0 is Debug level, 1 is Info level", type=int)
 args = parser.parse_args()
 
 
