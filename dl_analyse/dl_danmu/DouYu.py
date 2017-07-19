@@ -59,6 +59,7 @@ class DouYuDanMuClient(AbstractDanMuClient):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
             content = self.danmuSocket.pull()
+            self.logger.debug(content)
             for msg in re.findall(b'(type@=.*?)\x00', content):
                 try:
                     msg = msg.replace(b'@=', b'":"').replace(b'/', b'","')

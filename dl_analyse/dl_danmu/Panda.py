@@ -104,7 +104,9 @@ class PandaDanMuClient(AbstractDanMuClient):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
             content = self.danmuSocket.pull()
+            self.logger.debug(content)
             for msg in re.findall(b'({"type":.*?}})', content):
+
                 try:
                     msg = json.loads(msg.decode('utf8', 'ignore'))
                     msg['Content']  = msg.get('data', {}).get('content', '')
