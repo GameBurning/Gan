@@ -108,6 +108,7 @@ class PandaDanMuClient(AbstractDanMuClient):
                 try:
                     msg = json.loads(msg.decode('utf8', 'ignore'))
                     msg['Content']  = msg.get('data', {}).get('content', '')
+                    msg['MsgType'] = {'1': 'danmu', '206': 'gift'}.get(msg['type'], 'other')
                 except Exception as e:
                     self.logger.error(e)
                     pass

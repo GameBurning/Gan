@@ -65,6 +65,7 @@ class DouYuDanMuClient(AbstractDanMuClient):
                     msg = msg.replace(b'@A', b'@').replace(b'@S', b'/')
                     msg = json.loads((b'{"' + msg[:-2] + b'}').decode('utf8', 'ignore'))
                     msg['Content']  = msg.get('txt', '')
+                    msg['MsgType'] = {'dgb': 'gift', 'chatmsg': 'danmu', 'uenter': 'enter'}.get(msg['type'], 'other')
                 except Exception as e:
                     self.logger.error(e)
                     pass
