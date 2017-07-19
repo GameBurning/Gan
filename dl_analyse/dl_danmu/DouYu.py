@@ -59,16 +59,16 @@ class DouYuDanMuClient(AbstractDanMuClient):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
             content = self.danmuSocket.pull()
+            self.logger.debug(content)
             for msg in re.findall(b'(type@=.*?)\x00', content):
                 try:
                     msg = msg.replace(b'@=', b'":"').replace(b'/', b'","')
                     msg = msg.replace(b'@A', b'@').replace(b'@S', b'/')
                     msg = json.loads((b'{"' + msg[:-2] + b'}').decode('utf8', 'ignore'))
-                    msg['NickName'] = msg.get('nn', '')
                     msg['Content']  = msg.get('txt', '')
-                    msg['MsgType']  = {'dgb': 'gift', 'chatmsg': 'danmu',
-                        'uenter': 'enter'}.get(msg['type'], 'other')
+                    msg['MsgType'] = {'dgb': 'gift', 'chatmsg': 'danmu', 'uenter': 'enter'}.get(msg['type'], 'other')
                 except Exception as e:
+                    self.logger.error(e)
                     pass
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
