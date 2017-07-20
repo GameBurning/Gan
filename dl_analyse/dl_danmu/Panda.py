@@ -75,7 +75,8 @@ class PandaDanMuClient(AbstractDanMuClient):
                     '_': int(time.time()), }
                 serverInfo = requests.get(url, params).json()['data']
                 serverAddress = serverInfo['chat_addr_list'][0].split(':')
-                print("after prepare_env:", (serverAddress[0], int(serverAddress[1])), serverInfo)
+                self.logger.debug("after prepare_env:{}, {}, {}".format(serverAddress[0], int(serverAddress[1]),
+                                                                        serverInfo))
                 return (serverAddress[0], int(serverAddress[1])), serverInfo
             except Exception as e:
                 self.logger.critical("prepare_env Exception: {} and serverInfo: {}".format(e, serverInfo))
@@ -93,26 +94,29 @@ class PandaDanMuClient(AbstractDanMuClient):
             ('sign', roomInfo['sign']),
             ('authtype', roomInfo['authType']) ]
         data = '\n'.join('%s:%s'%(k, v) for k, v in data)
-        data = (b'\x00\x06\x00\x02\x00' + pack('B', len(data)) +
-            data.encode('utf8') + b'\x00\x06\x00\x00')
+        msgLen = len(data)
+        data = b'\x00\x06\x00\x02' + int.to_bytes(msgLen, 2, 'big') + data.encode('utf-8')
         self.danmuSocket = _socket(socket.AF_INET, socket.SOCK_STREAM)
         self.danmuSocket.settimeout(3)
         self.danmuSocket.connect(danmu)
-        self.danmuSocket.push(data)
+        self.danmuSocket.sendall(data)
+        recvMsg = self.danmuSocket.recv(CHECK_LEN)
+        if recvMsg == FIRST_RPS:
+            print('成功连接弹幕服务器')
+            recvLen = int.from_bytes(self.danmuSocket.recv(2), 'big')
+            self.danmuSocket.recv(recvLen)
 
     def _create_thread_fn(self, roomInfo):
         def get_danmu(self):
             if not select.select([self.danmuSocket], [], [], 1)[0]: return
             content = self.danmuSocket.pull()
-            self.logger.debug(content)
             for msg in re.findall(b'({"type":.*?}})', content):
-
                 try:
                     msg = json.loads(msg.decode('utf8', 'ignore'))
                     msg['Content']  = msg.get('data', {}).get('content', '')
                     msg['MsgType'] = {'1': 'danmu', '206': 'gift'}.get(msg['type'], 'other')
                 except Exception as e:
-                    self.logger.error(e)
+                    #self.logger.error("msg is {}. get msg:{}".format(msg, e))
                     pass
                 else:
                     self.danmuWaitTime = time.time() + self.maxNoDanMuWait
@@ -120,6 +124,6 @@ class PandaDanMuClient(AbstractDanMuClient):
                         self.logger.debug(msg['Content'])
                         self.countDanmuFn(msg['Content'])
         def heart_beat(self):
-            self.danmuSocket.push(b'\x00\x06\x00\x06')
+            self.danmuSocket.send(b'\x00\x06\x00\x00')
             time.sleep(60)
         return get_danmu, heart_beat
