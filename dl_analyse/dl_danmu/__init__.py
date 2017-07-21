@@ -96,7 +96,7 @@ class DanmuThread(threading.Thread):
                         break
                     else:
                         self.logger.info("start_record of {} failed: {}".format(self.__name, m))
-                        time.sleep(5)
+                        time.sleep(60)
                         trial_counter += 1
                 else:
                     return
