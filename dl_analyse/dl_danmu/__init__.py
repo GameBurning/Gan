@@ -144,11 +144,11 @@ class DanmuThread(threading.Thread):
                     self.logger.debug("{} has {} douyu times and target number is {}"
                         .format(self.__name, sum(i >= 2 for i in self.__dc.DouyuList),
                                 self.__dc.DouyuList[block_id - 1]))
-                    if self.__dc.DouyuList[-2] * self.__factor > 4 or self.__dc.LuckyList[-2] * self.__factor > 40:
+                    if self.__dc.DouyuList[-2] * self.__factor > 4 or self.__dc.LuckyList[-2] * self.__factor > 50:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max(calc_possibility((l_c.douyu + l_last_block_data[3][0]) * self.__factor, 5),
-                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 40))
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 80))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr,
                                         l_last_block_data[2][0], block_id)
@@ -166,7 +166,7 @@ class DanmuThread(threading.Thread):
                         else:
                             l_c = self.__dc.get_count(-2)
                             l_pot = max(calc_possibility(l_c.douyu * self.__factor, 5),
-                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 40))
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 80))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
