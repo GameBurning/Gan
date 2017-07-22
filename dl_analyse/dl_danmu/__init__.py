@@ -60,14 +60,22 @@ class DanmuThread(threading.Thread):
             record_folder_dir = _dir + self.__record_id + '/'
             return record_folder_dir
 
-        def calc_possibility(actual_num, middle_num):
-            if actual_num < middle_num:
-                return 0
-            else:
-                return -1/(actual_num - middle_num + 2) + 1
+        def calc_possibility(actual_num, type):
+            if type == "douyu":
+                if actual_num < 5:
+                    return 0
+                else:
+                    return -1/(actual_num - 3) + 1
+            elif type == "lucky":
+                if actual_num < 40:
+                    return 0
+                else:
+                    return -1/(actual_num / 10 - 1.8) + 0.49
 
-        assert calc_possibility(5, 5) == 0.5, "calc_possibility wrong"
-        assert calc_possibility(10000, 5) < 1, "calc_possibility >= 1"
+        assert calc_possibility(5, "douyu") == 0.5, "calc_possibility wrong"
+        assert calc_possibility(39, "lucky") == 0, "calc_possibility wrong"
+        assert calc_possibility(80, "lucky") < 0.49, "calc_possibility wrong"
+        assert calc_possibility(10000, "douyu") < 1, "calc_possibility >= 1"
 
         # Danmu Thread On
         self.logger.info("===========DanmuThread of {} starts===========".format(self.__name))
@@ -147,8 +155,8 @@ class DanmuThread(threading.Thread):
                     if self.__dc.DouyuList[-2] * self.__factor > 4 or self.__dc.LuckyList[-2] * self.__factor > 50:
                         if l_last_block_data[0]:
                             l_c = self.__dc.get_count(-2)
-                            l_pot = max(calc_possibility((l_c.douyu + l_last_block_data[3][0]) * self.__factor, 5),
-                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 80))
+                            l_pot = max(calc_possibility((l_c.douyu + l_last_block_data[3][0]) * self.__factor, "douyu"),
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, "lucky"))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr,
                                         l_last_block_data[2][0], block_id)
@@ -165,8 +173,8 @@ class DanmuThread(threading.Thread):
                                                   l_last_block_data[3][3] + l_c.lucky))
                         else:
                             l_c = self.__dc.get_count(-2)
-                            l_pot = max(calc_possibility(l_c.douyu * self.__factor, 5),
-                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, 80))
+                            l_pot = max(calc_possibility(l_c.douyu * self.__factor, "douyu"),
+                                        calc_possibility(self.__dc.LuckyList[-2] * self.__factor, "lucky"))
                             l_video_name = '{:.2f}_{}_from{}_to{}'\
                                 .format(l_pot, self.__abbr, block_id - 3, block_id)
                             l_last_block_data = (True, l_video_name, (block_id - 3, block_id),
