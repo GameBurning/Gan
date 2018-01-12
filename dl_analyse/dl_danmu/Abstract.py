@@ -1,3 +1,7 @@
+‘’‘
+I chooose this code snippet to showcase my ability of design the structure of a class
+’‘’
+
 import abc, threading, time, traceback, logging
 
 
