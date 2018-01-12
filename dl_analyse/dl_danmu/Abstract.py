@@ -1,5 +1,5 @@
 ‘’‘
-I chooose this code snippet to showcase my ability of design the structure of a class
+I chooose this code snippet to showcase my ability of design the basic skeleton of a client for livestream recording
 ’‘’
 
 import abc, threading, time, traceback, logging
